@@ -35,8 +35,8 @@ import kotlin.math.sin
 /**
  * Calculator's loading mark, the launcher icon in motion: its four keys
  * pressed one after the other, + − × ÷, as a calculation typed, each
- * sinking into the plate and springing back with a gleam. The plate and the
- * keys are the icon's layers (Modules/icons/calculator: export.py, mark.py):
+ * sinking around its own centre and springing back with a gleam. The disc
+ * and the keys are the icon's layers (Modules/icons/calculator: export.py mark),
  * a grey multiplied by the theme's accent, its white light, the signs in
  * ivory. [progress] is not drawn: the keys keep typing while [running], and
  * rest otherwise.
@@ -48,17 +48,17 @@ fun LoadingMark(
     running: Boolean = true,
     @Suppress("UNUSED_PARAMETER") progress: Float = 0f
 ) {
-    val plate = ImageBitmap.imageResource(R.drawable.keys_mark_plate)
-    val plateShine = ImageBitmap.imageResource(R.drawable.keys_mark_plate_shine)
+    val disc = ImageBitmap.imageResource(R.drawable.keys_mark_disc)
+    val discShine = ImageBitmap.imageResource(R.drawable.keys_mark_disc_shine)
     val keys = listOf(
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key0), ImageBitmap.imageResource(R.drawable.keys_mark_key0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key0_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key0_light), 0.1484f, 0.0833f, 0.3431f, 0.2762f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key1), ImageBitmap.imageResource(R.drawable.keys_mark_key1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key1_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key1_light), 0.5651f, 0.0833f, 0.7599f, 0.2773f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key2), ImageBitmap.imageResource(R.drawable.keys_mark_key2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key2_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key2_light), 0.1484f, 0.4974f, 0.3432f, 0.6925f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key3_light), 0.5677f, 0.5000f, 0.7608f, 0.6929f)
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key0), ImageBitmap.imageResource(R.drawable.keys_mark_key0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key0_sign), 0.1510f, 0.1510f, 0.3239f, 0.3239f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key1), ImageBitmap.imageResource(R.drawable.keys_mark_key1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key1_sign), 0.5000f, 0.1510f, 0.6735f, 0.3239f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key2), ImageBitmap.imageResource(R.drawable.keys_mark_key2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key2_sign), 0.1510f, 0.5000f, 0.3239f, 0.6735f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), 0.5000f, 0.5000f, 0.6735f, 0.6735f)
     )
     val colors = MaterialTheme.colorScheme
     val night = colors.background.luminance() < 0.5f
-    // The plate keeps the icon's deep tone; by night primary is a pale one.
+    // The disc keeps the icon's deep tone; by night primary is a pale one.
     val tone = if (night) colors.inversePrimary else colors.primary
     val tint = remember(tone) { ColorFilter.tint(tone, BlendMode.Modulate) }
     val transition = rememberInfiniteTransition(label = "typing")
@@ -72,8 +72,8 @@ fun LoadingMark(
     Canvas(modifier.size(size)) {
         val side = this.size.minDimension * PLATE
         val origin = Offset((this.size.width - side) / 2f, (this.size.height - side) / 2f)
-        image(plate, origin, side, tint)
-        image(plateShine, origin, side, null)
+        image(disc, origin, side, tint)
+        image(discShine, origin, side, null)
         keys.forEachIndexed { i, key ->
             val press = if (running) press(clock - i * STEP_MILLIS) else Press.REST
             val keyTint = if (press.depth > 0f) ColorFilter.tint(tone.copy(red = tone.red * (1f - 0.1f * press.depth), green = tone.green * (1f - 0.1f * press.depth), blue = tone.blue * (1f - 0.1f * press.depth)), BlendMode.Modulate) else tint
@@ -87,7 +87,8 @@ fun LoadingMark(
                 image(key.body, topLeft, key.body.width * unit, keyTint)
                 image(key.shine, topLeft, key.body.width * unit, null)
                 image(key.sign, topLeft, key.body.width * unit, null)
-                if (press.gleam > 0f) image(key.light, topLeft, key.body.width * unit, null, alpha = 0.45f * press.gleam)
+                // The gleam: the key's own light, brighter for a moment.
+                if (press.gleam > 0f) image(key.shine, topLeft, key.body.width * unit, null, alpha = 0.8f * press.gleam)
             }
         }
     }
@@ -97,7 +98,6 @@ private class Key(
     val body: ImageBitmap,
     val shine: ImageBitmap,
     val sign: ImageBitmap,
-    val light: ImageBitmap,
     /** The key's box and centre in the mark, in fractions of its side. */
     val left: Float,
     val top: Float,
@@ -136,8 +136,8 @@ private fun DrawScope.image(image: ImageBitmap, at: Offset, width: Float, filter
     )
 }
 
-/** The plate's share of the mark, leaving room for the keys' spring. */
-private const val PLATE = 0.92f
+/** The disc's share of the mark. */
+private const val PLATE = 0.94f
 /** The side the mark's layers were exported at. */
 private const val MARK_PX = 384f
 private const val LOOP_MILLIS = 1800
