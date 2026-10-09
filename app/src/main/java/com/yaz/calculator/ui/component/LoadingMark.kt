@@ -51,10 +51,10 @@ fun LoadingMark(
     val plate = ImageBitmap.imageResource(R.drawable.keys_mark_plate)
     val plateShine = ImageBitmap.imageResource(R.drawable.keys_mark_plate_shine)
     val keys = listOf(
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key0), ImageBitmap.imageResource(R.drawable.keys_mark_key0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key0_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key0_light), 0.0964f, 0.0833f, 0.2923f, 0.2858f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key1), ImageBitmap.imageResource(R.drawable.keys_mark_key1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key1_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key1_light), 0.5104f, 0.0833f, 0.7051f, 0.2858f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key2), ImageBitmap.imageResource(R.drawable.keys_mark_key2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key2_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key2_light), 0.0964f, 0.5104f, 0.2923f, 0.7116f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key3_light), 0.5104f, 0.5104f, 0.7051f, 0.7116f)
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key0), ImageBitmap.imageResource(R.drawable.keys_mark_key0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key0_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key0_light), 0.1484f, 0.0833f, 0.3431f, 0.2762f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key1), ImageBitmap.imageResource(R.drawable.keys_mark_key1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key1_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key1_light), 0.5651f, 0.0833f, 0.7599f, 0.2773f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key2), ImageBitmap.imageResource(R.drawable.keys_mark_key2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key2_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key2_light), 0.1484f, 0.4974f, 0.3432f, 0.6925f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), ImageBitmap.imageResource(R.drawable.keys_mark_key3_light), 0.5677f, 0.5000f, 0.7608f, 0.6929f)
     )
     val colors = MaterialTheme.colorScheme
     val night = colors.background.luminance() < 0.5f
