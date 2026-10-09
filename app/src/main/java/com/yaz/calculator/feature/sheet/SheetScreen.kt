@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.sheet
 
+import com.yaz.calculator.ui.component.sink
 import android.content.ClipData
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -269,7 +270,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                     selection = TextRange(at.min + sign.length)
                                 }
                             },
-                            modifier = Modifier.weight(1f).height(44.dp).semantics { contentDescription = sign }
+                            modifier = Modifier.weight(1f).height(44.dp).sink(0.86f).semantics { contentDescription = sign }
                         ) {
                             Box(contentAlignment = Alignment.Center) { Text(sign, fontSize = 20.sp, color = colors.primary) }
                         }

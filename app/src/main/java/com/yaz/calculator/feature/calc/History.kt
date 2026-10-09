@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.calc
 
+import com.yaz.calculator.ui.component.sink
 import android.text.format.DateUtils
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -65,7 +66,7 @@ fun HistoryList(vm: CalcViewModel, style: NumberStyle, padding: PaddingValues, o
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
                 )
-                is Row.Line -> ZoneSurface(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                is Row.Line -> ZoneSurface(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth().sink(0.97f)) {
                     Column(Modifier.padding(vertical = 6.dp)) {
                         Text(
                             style.show(vm.spelled(row.entry.expression)),

@@ -1,5 +1,6 @@
 package com.yaz.calculator.navigation
 
+import com.yaz.calculator.ui.component.sink
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
@@ -193,6 +194,7 @@ private fun ModeSwitch(mode: Mode, onMode: (Mode) -> Unit) {
                 Row(
                     Modifier
                         .height(40.dp)
+                        .sink(0.9f)
                         .clip(CircleShape)
                         .then(if (on) Modifier.background(accent, CircleShape) else Modifier)
                         .clickable(role = Role.Tab) {

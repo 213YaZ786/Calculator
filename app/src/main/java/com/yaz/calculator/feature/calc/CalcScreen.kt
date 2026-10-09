@@ -53,6 +53,9 @@ import com.yaz.calculator.ui.glass.LocalGlass
 import com.yaz.calculator.ui.glass.groundHere
 import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableStateOf
 import org.koin.compose.koinInject
 
 /**
@@ -180,8 +183,16 @@ private fun ResultActions(vm: CalcViewModel, style: NumberStyle) {
         Row(Modifier.padding(top = 4.dp, bottom = 4.dp).then(menu.tracker), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             if (result != null) {
                 val text = style.show(result)
-                ResultAction(AppIcons.Copy, "Copy") {
+                var copied by remember { mutableStateOf(false) }
+                LaunchedEffect(copied) {
+                    if (copied) {
+                        delay(1_200)
+                        copied = false
+                    }
+                }
+                ResultAction(if (copied) AppIcons.CheckCircle else AppIcons.Copy, if (copied) "Copied" else "Copy") {
                     haptics.done()
+                    copied = true
                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
                 }
                 ResultAction(AppIcons.Share, "Share") {

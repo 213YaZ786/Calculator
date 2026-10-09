@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.convert
 
+import com.yaz.calculator.ui.component.sink
 import android.content.ClipData
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
@@ -155,7 +156,7 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         // The category, a pill that opens every category.
-        ZoneSurface(shape = CircleShape, accent = true, onClick = { haptics.tick(); onCategories() }, modifier = Modifier.heightIn(min = 48.dp)) {
+        ZoneSurface(shape = CircleShape, accent = true, onClick = { haptics.tick(); onCategories() }, modifier = Modifier.heightIn(min = 48.dp).sink()) {
             Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(iconOf(vm.category), contentDescription = null, modifier = Modifier.size(20.dp))
                 Text(nameOf(vm.category), style = MaterialTheme.typography.titleMedium)
@@ -192,14 +193,26 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
                 // To: the result, a tap copies it.
                 Side(vm.choice(vm.to), onUnit = { haptics.tick(); onPick(false) }) {
                     val out = vm.output
+                    // Copied: the number pops, as a key does.
+                    val pop = remember { Animatable(0f) }
                     Text(
                         out?.let { style.show(it) } ?: "–",
                         style = TextStyle(fontSize = 40.sp, textAlign = TextAlign.End, fontWeight = FontWeight.Normal),
                         color = colors.primary,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .graphicsLayer {
+                                val k = 1f + 0.08f * pop.value
+                                scaleX = k
+                                scaleY = k
+                                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0.5f)
+                            }
                             .clickable(enabled = out != null, onClickLabel = "Copy") {
                                 haptics.done()
+                                scope.launch {
+                                    pop.snapTo(1f)
+                                    pop.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 500f))
+                                }
                                 val text = style.show(out!!.removeSuffix("…"))
                                 scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
                             }
@@ -217,7 +230,7 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
                         turn.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = 400f))
                     }
                 },
-                modifier = Modifier.align(Alignment.Center).size(48.dp).semantics { contentDescription = "Swap units" }
+                modifier = Modifier.align(Alignment.Center).size(48.dp).sink(0.86f).semantics { contentDescription = "Swap units" }
             ) {
                 Box(contentAlignment = Alignment.Center) {
                     Icon(AppIcons.Swap, contentDescription = null, modifier = Modifier.size(24.dp).graphicsLayer { rotationZ = turn.value * 180f })
@@ -233,7 +246,7 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
 private fun Side(choice: Choice?, onUnit: () -> Unit, number: @Composable () -> Unit) {
     ZoneSurface(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), horizontalAlignment = Alignment.End) {
-            ZoneSurface(shape = CircleShape, onClick = onUnit, modifier = Modifier.heightIn(min = 40.dp)) {
+            ZoneSurface(shape = CircleShape, onClick = onUnit, modifier = Modifier.heightIn(min = 40.dp).sink()) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         choice?.let { if (it.symbol != it.name) "${it.name} · ${it.symbol}" else it.name } ?: "Choose",
@@ -275,7 +288,7 @@ private fun RatesLine(vm: ConvertViewModel) {
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (state == RatesState.FAILED) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                ZoneSurface(shape = CircleShape, onClick = { haptics.tick(); vm.rates.refresh() }, modifier = Modifier.size(40.dp).semantics { contentDescription = "Fetch the rates again" }) {
+                ZoneSurface(shape = CircleShape, onClick = { haptics.tick(); vm.rates.refresh() }, modifier = Modifier.size(40.dp).sink(0.86f).semantics { contentDescription = "Fetch the rates again" }) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(AppIcons.Refresh, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                     }
@@ -309,7 +322,7 @@ private fun CategoryDialog(current: Category, onPick: (Category) -> Unit, onDism
                             shape = RoundedCornerShape(20.dp),
                             accent = c == current,
                             onClick = { haptics.tick(); onPick(c) },
-                            modifier = Modifier.width(96.dp)
+                            modifier = Modifier.width(96.dp).sink()
                         ) {
                             Column(Modifier.padding(vertical = 14.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
                                 Icon(iconOf(c), contentDescription = null, tint = MaterialTheme.colorScheme.primary)

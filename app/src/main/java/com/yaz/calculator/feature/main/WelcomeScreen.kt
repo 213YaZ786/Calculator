@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.main
 
+import com.yaz.calculator.ui.component.sink
 import android.Manifest
 import android.app.StatusBarManager
 import android.content.ComponentName
@@ -95,7 +96,8 @@ fun WelcomeScreen(onStart: () -> Unit) {
                     ZoneSurface(
                         shape = CircleShape,
                         accent = settings.degrees == deg,
-                        onClick = { haptics.tick(); store.update { it.copy(degrees = deg) } }
+                        onClick = { haptics.tick(); store.update { it.copy(degrees = deg) } },
+                        modifier = Modifier.sink()
                     ) {
                         Text(label, modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp))
                     }

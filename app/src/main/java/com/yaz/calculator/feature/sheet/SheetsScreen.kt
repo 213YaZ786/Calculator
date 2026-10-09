@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.sheet
 
+import com.yaz.calculator.ui.component.sink
 import android.text.format.DateUtils
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -64,7 +65,7 @@ fun SheetsScreen(padding: PaddingValues, onOpen: (String) -> Unit) {
                     haptics.firm()
                     onOpen(store.create().id)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().sink(0.97f)
             ) {
                 Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
                     Icon(AppIcons.NoteAdd, contentDescription = null, modifier = Modifier.size(24.dp))
@@ -79,7 +80,7 @@ fun SheetsScreen(padding: PaddingValues, onOpen: (String) -> Unit) {
                     haptics.tick()
                     onOpen(sheet.id)
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().sink(0.97f)
             ) {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp)) {
                     Text(

@@ -1,11 +1,14 @@
 package com.yaz.calculator.feature.calc
 
+import com.yaz.calculator.ui.component.sink
 import android.content.ClipData
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
@@ -216,9 +219,12 @@ private fun Badge(text: String) {
 /** A round action under the result: copy, share, memory ([sign] instead of an icon: M). */
 @Composable
 fun ResultAction(icon: ImageVector?, label: String, sign: String? = null, onClick: () -> Unit) {
-    ZoneSurface(shape = CircleShape, modifier = Modifier.size(44.dp).semantics { contentDescription = label }, onClick = onClick) {
+    ZoneSurface(shape = CircleShape, modifier = Modifier.size(44.dp).sink(0.86f).semantics { contentDescription = label }, onClick = onClick) {
         Box(contentAlignment = Alignment.Center) {
-            if (icon != null) Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            // A changed icon (copy, then its tick) turns in, as the app's actions answer.
+            if (icon != null) AnimatedContent(icon, transitionSpec = { (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut()) }, label = "icon") {
+                Icon(it, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+            }
             else Text(sign.orEmpty(), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
         }
     }
