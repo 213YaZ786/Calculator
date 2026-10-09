@@ -36,8 +36,8 @@ import kotlin.math.sin
 /**
  * Calculator's loading mark, the launcher icon in motion: its four keys
  * pressed one after the other, + − × ÷, as a calculation typed, each
- * face sinking a little into its own step and springing back with a gleam.
- * The icon and the faces are its layers (Modules/icons/calculator: export.py mark),
+ * key sinking whole, to its base, and springing back with a gleam.
+ * The icon and the keys are its layers (Modules/icons/calculator: export.py mark),
  * a grey multiplied by the theme's accent, its white light, the signs in
  * ivory. [progress] is not drawn: the keys keep typing while [running], and
  * rest otherwise.
@@ -52,11 +52,11 @@ fun LoadingMark(
     val base = ImageBitmap.imageResource(R.drawable.keys_mark_base)
     val baseShine = ImageBitmap.imageResource(R.drawable.keys_mark_base_shine)
     val baseSigns = ImageBitmap.imageResource(R.drawable.keys_mark_base_signs)
-    val faces = listOf(
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_face0), ImageBitmap.imageResource(R.drawable.keys_mark_face0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_face0_sign), 0.1693f, 0.1693f, 0.3239f, 0.3239f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_face1), ImageBitmap.imageResource(R.drawable.keys_mark_face1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_face1_sign), 0.5182f, 0.1693f, 0.6735f, 0.3239f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_face2), ImageBitmap.imageResource(R.drawable.keys_mark_face2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_face2_sign), 0.1693f, 0.5182f, 0.3239f, 0.6735f),
-        Key(ImageBitmap.imageResource(R.drawable.keys_mark_face3), ImageBitmap.imageResource(R.drawable.keys_mark_face3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_face3_sign), 0.5182f, 0.5182f, 0.6735f, 0.6735f)
+    val keys = listOf(
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key0), ImageBitmap.imageResource(R.drawable.keys_mark_key0_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key0_sign), 0.1562f, 0.1771f, 0.3238f, 0.3402f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key1), ImageBitmap.imageResource(R.drawable.keys_mark_key1_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key1_sign), 0.5026f, 0.1745f, 0.6708f, 0.3378f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key2), ImageBitmap.imageResource(R.drawable.keys_mark_key2_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key2_sign), 0.1536f, 0.5260f, 0.3221f, 0.6918f),
+        Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), 0.5078f, 0.5312f, 0.6719f, 0.6906f)
     )
     val colors = MaterialTheme.colorScheme
     val night = colors.background.luminance() < 0.5f
@@ -74,28 +74,28 @@ fun LoadingMark(
     Canvas(modifier.size(size)) {
         val side = this.size.minDimension * PLATE
         val origin = Offset((this.size.width - side) / 2f, (this.size.height - side) / 2f)
-        // The icon as it is; a pressed key's face sinks a little into its own step,
-        // the thin wall it leaves in shade, nothing beyond the key.
+        // The icon as it is; a pressed key sinks whole, to its base, over its own
+        // base in shade: the thin ring it uncovers follows the key's outline.
         image(base, origin, side, tint)
         image(baseShine, origin, side, null)
         image(baseSigns, origin, side, null)
         val unit = side / MARK_PX
-        faces.forEachIndexed { i, face ->
+        keys.forEachIndexed { i, key ->
             val press = if (running) press(clock - i * STEP_MILLIS) else Press.REST
             if (press.depth <= 0f) return@forEachIndexed
-            val topLeft = origin + Offset(face.left * side, face.top * side)
-            val width = face.body.width * unit
-            image(face.body, topLeft, width, shade(tone, 0.30f * press.depth))
-            val pivot = origin + Offset(face.cx * side, face.cy * side)
+            val topLeft = origin + Offset(key.left * side, key.top * side)
+            val width = key.body.width * unit
+            image(key.body, topLeft, width, shade(tone, 0.30f * press.depth))
+            val pivot = origin + Offset(key.cx * side, key.cy * side)
             withTransform({
                 translate(top = side * 0.004f * press.depth)
                 scale(press.scale, press.scale, pivot)
             }) {
-                image(face.body, topLeft, width, shade(tone, 0.08f * press.depth))
-                image(face.shine, topLeft, width, null)
-                image(face.sign, topLeft, width, null)
+                image(key.body, topLeft, width, shade(tone, 0.08f * press.depth))
+                image(key.shine, topLeft, width, null)
+                image(key.sign, topLeft, width, null)
                 // The gleam: the key's own light, brighter for a moment.
-                if (press.gleam > 0f) image(face.shine, topLeft, width, null, alpha = 0.8f * press.gleam)
+                if (press.gleam > 0f) image(key.shine, topLeft, width, null, alpha = 0.8f * press.gleam)
             }
         }
     }
@@ -109,7 +109,7 @@ private class Key(
     val body: ImageBitmap,
     val shine: ImageBitmap,
     val sign: ImageBitmap,
-    /** The face's box and centre in the mark, in fractions of its side. */
+    /** The key's box and centre in the mark, in fractions of its side. */
     val left: Float,
     val top: Float,
     val cx: Float,
