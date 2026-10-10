@@ -1,6 +1,8 @@
 package com.yaz.calculator.di
 
+import com.yaz.calculator.data.advanced.AdvancedStore
 import com.yaz.calculator.data.history.Ledger
+import com.yaz.calculator.feature.advanced.AdvancedViewModel
 import com.yaz.calculator.data.rates.Rates
 import com.yaz.calculator.data.settings.SettingsStore
 import com.yaz.calculator.data.sheets.SheetStore
@@ -21,7 +23,9 @@ val appModule = module {
     single { Ledger(androidContext(), get()) }
     single { SheetStore(androidContext(), get()) }
     single { Rates(androidContext(), get()) }
+    single { AdvancedStore(androidContext(), get()) }
     viewModelOf(::CalcViewModel)
     viewModelOf(::ConvertViewModel)
+    viewModelOf(::AdvancedViewModel)
     viewModelOf(::SettingsViewModel)
 }

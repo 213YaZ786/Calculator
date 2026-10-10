@@ -155,6 +155,23 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         return Feel.DONE
     }
 
+    // ---------- advanced mode ----------
+
+    /** The advanced mode in place of the calculator's keys (the gold key). */
+    var advanced by mutableStateOf(false)
+        private set
+
+    /** Openings of the advanced mode, and those whose gold sweep has played. */
+    var advancedOpenings by mutableIntStateOf(0)
+        private set
+    var advancedPlayed = 0
+
+    fun toggleAdvanced(): Feel {
+        advanced = !advanced
+        if (advanced) advancedOpenings++
+        return Feel.DONE
+    }
+
     // ---------- programmer (Windows Calculator's Programmer mode) ----------
 
     /** The programmer's keys and display in place of the calculator's. */

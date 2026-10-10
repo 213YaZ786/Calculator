@@ -47,14 +47,14 @@ import com.yaz.calculator.ui.icon.AppIcons
  * it. The chip at the top goes back to the calculator.
  */
 @Composable
-fun ProgrammerDisplay(vm: CalcViewModel, modifier: Modifier = Modifier) {
+fun ProgrammerDisplay(vm: CalcViewModel, modifier: Modifier = Modifier, chip: Boolean = true) {
     val colors = MaterialTheme.colorScheme
     val haptics = rememberHaptics()
     val measurer = rememberTextMeasurer()
     val value = remember(vm.prog) { runCatching { vm.prog.value() }.getOrNull() }
     BoxWithConstraints(modifier.padding(horizontal = 20.dp)) {
         val width = maxWidth
-        ZoneSurface(
+        if (chip) ZoneSurface(
             shape = CircleShape,
             accent = true,
             onClick = { feelIt(haptics, vm.toggleProgrammer()) },

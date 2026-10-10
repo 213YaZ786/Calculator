@@ -61,6 +61,14 @@ import com.yaz.calculator.ui.glass.groundHere
 import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.ui.graphics.graphicsLayer
+import com.yaz.calculator.feature.advanced.AdvancedScreen
+import com.yaz.calculator.feature.advanced.AdvancedViewModel
+import com.yaz.calculator.feature.advanced.Gold
+import org.koin.androidx.compose.koinViewModel
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.coroutines.flow.first
@@ -127,6 +135,14 @@ fun CalcScreen(
         reveal.snapTo(0f)
     }
     val accent = MaterialTheme.colorScheme.primary
+    val sweep = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(vm.advancedOpenings) {
+        if (vm.advancedOpenings == vm.advancedPlayed) return@LaunchedEffect
+        vm.advancedPlayed = vm.advancedOpenings
+        sweep.snapTo(0f)
+        sweep.animateTo(1f, tween(900, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        sweep.snapTo(0f)
+    }
 
     BoxWithConstraints(
         Modifier
@@ -134,6 +150,20 @@ fun CalcScreen(
             .onGloballyPositioned { origin = it.positionInRoot() }
             .drawWithContent {
                 drawContent()
+                // The gold sweep of the advanced mode's opening, from the bottom up.
+                if (sweep.value > 0f) {
+                    val y = size.height * (1.15f - 1.3f * sweep.value)
+                    val band = size.height * 0.22f
+                    val fadeOut = 1f - sweep.value * sweep.value
+                    drawRect(
+                        androidx.compose.ui.graphics.Brush.verticalGradient(
+                            listOf(androidx.compose.ui.graphics.Color.Transparent, Gold.copy(alpha = 0.55f * fadeOut), androidx.compose.ui.graphics.Color.Transparent),
+                            startY = y - band, endY = y + band
+                        ),
+                        topLeft = androidx.compose.ui.geometry.Offset(0f, y - band),
+                        size = androidx.compose.ui.geometry.Size(size.width, band * 2)
+                    )
+                }
                 if (sparkleRipple != null && sparkle.value > 0f && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                     // Over the whole screen, from ⌫.
                     val centre = vm.clearFrom - origin
@@ -176,56 +206,82 @@ fun CalcScreen(
                     .padding(top = padding.calculateTopPadding())
                     .padding(horizontal = 12.dp)
             ) {
-                // Drawn down from the display, the history comes, as on a paper roll.
-                var pulled by remember { mutableFloatStateOf(0f) }
-                if (vm.programmer) ProgrammerDisplay(vm, Modifier.weight(1f).fillMaxWidth()) else Display(
-                    vm,
-                    style,
-                    memoryOn = ledger.memory != null,
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .onGloballyPositioned { displayRect = it.boundsInRoot() }
-                        .pointerInput(sideHistory) {
-                            if (sideHistory) return@pointerInput
-                            detectVerticalDragGestures(
-                                onDragEnd = { pulled = 0f },
-                                onDragCancel = { pulled = 0f }
-                            ) { _, dy ->
-                                pulled += dy
-                                if (pulled > with(density) { 72.dp.toPx() }) {
-                                    pulled = Float.NEGATIVE_INFINITY
-                                    haptics.firm()
-                                    onHistory(true)
-                                }
-                            }
+                // The gold key turns the keypad into the advanced mode: the old keys tip back,
+                // the new ones rise and pop in, under a sweep of gold.
+                AnimatedContent(
+                    targetState = vm.advanced,
+                    transitionSpec = { (fadeIn(tween(380, delayMillis = 140)) togetherWith fadeOut(tween(220))).using(SizeTransform(clip = false)) },
+                    label = "advanced",
+                    modifier = Modifier.weight(1f).fillMaxWidth()
+                ) { advanced ->
+                    val tilt by transition.animateFloat(transitionSpec = { androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 260f) }, label = "tilt") {
+                        when (it) {
+                            androidx.compose.animation.EnterExitState.PreEnter -> 70f
+                            androidx.compose.animation.EnterExitState.Visible -> 0f
+                            androidx.compose.animation.EnterExitState.PostExit -> -70f
                         }
-                ) { ResultActions(vm, style) }
-                Spacer(Modifier.height(8.dp))
-                if (vm.programmer) {
-                    // The validated layout B: the bitwise band over a grid of five columns.
-                    val keyHeight = if (wide) maxH * 0.5f else minOf(maxH * 0.46f, maxW * 1.25f)
-                    KeyGrid(programmerBand(vm), Modifier.fillMaxWidth().height(keyHeight / 5 * 0.72f), gap = 8.dp)
-                    Spacer(Modifier.height(10.dp))
-                    KeyGrid(programmerKeys(vm), Modifier.fillMaxWidth().height(keyHeight).then(bottom), gap = 8.dp, firstIndex = 6)
-                } else if (wide) {
-                    Row(Modifier.fillMaxWidth().height(maxH * 0.62f).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
-                        KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
                     }
-                } else {
-                    // Unfolded, the scientific band takes room from the keys, not from the display.
-                    val keyHeight = minOf(maxH * if (sciOpen) 0.42f else 0.50f, maxW * 1.25f)
-                    val band = if (sciOpen) 3 else 1
-                    Box(Modifier.fillMaxWidth().animateContentSize()) {
-                        KeyGrid(
-                            scientific(vm, sciOpen, showFold = !tablet) { store.update { it.copy(scientificOpen = !it.scientificOpen) } },
-                            Modifier.fillMaxWidth().height(keyHeight / 5 * 0.72f * band + 8.dp * (band - 1)),
-                            gap = 8.dp
+                    val turned = Modifier.fillMaxSize().graphicsLayer {
+                        rotationX = tilt
+                        cameraDistance = 14f * this.density
+                        transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 1f)
+                    }
+                    if (advanced) {
+                        val adv: AdvancedViewModel = koinViewModel()
+                        AdvancedScreen(
+                            vm, adv, style, wide,
+                            keysHeight = if (wide) maxH * 0.62f else minOf(maxH * 0.50f, maxW * 1.35f),
+                            calcDisplay = { m -> Display(vm, style, memoryOn = ledger.memory != null, modifier = m) { ResultActions(vm, style) } },
+                            onQuit = { feelIt(haptics, vm.toggleAdvanced()) },
+                            modifier = turned.then(bottom)
                         )
+                    } else Column(turned) {
+                        // Drawn down from the display, the history comes, as on a paper roll.
+                        var pulled by remember { mutableFloatStateOf(0f) }
+                        Display(
+                            vm,
+                            style,
+                            memoryOn = ledger.memory != null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .onGloballyPositioned { displayRect = it.boundsInRoot() }
+                                .pointerInput(sideHistory) {
+                                    if (sideHistory) return@pointerInput
+                                    detectVerticalDragGestures(
+                                        onDragEnd = { pulled = 0f },
+                                        onDragCancel = { pulled = 0f }
+                                    ) { _, dy ->
+                                        pulled += dy
+                                        if (pulled > with(density) { 72.dp.toPx() }) {
+                                            pulled = Float.NEGATIVE_INFINITY
+                                            haptics.firm()
+                                            onHistory(true)
+                                        }
+                                    }
+                                }
+                        ) { ResultActions(vm, style) }
+                        Spacer(Modifier.height(8.dp))
+                        if (wide) {
+                            Row(Modifier.fillMaxWidth().height(maxH * 0.62f).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
+                                KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
+                            }
+                        } else {
+                            // Unfolded, the scientific band takes room from the keys, not from the display.
+                            val keyHeight = minOf(maxH * if (sciOpen) 0.42f else 0.50f, maxW * 1.25f)
+                            val band = if (sciOpen) 3 else 1
+                            Box(Modifier.fillMaxWidth().animateContentSize()) {
+                                KeyGrid(
+                                    scientific(vm, sciOpen, showFold = !tablet) { store.update { it.copy(scientificOpen = !it.scientificOpen) } },
+                                    Modifier.fillMaxWidth().height(keyHeight / 5 * 0.72f * band + 8.dp * (band - 1)),
+                                    gap = 8.dp
+                                )
+                            }
+                            Spacer(Modifier.height(10.dp))
+                            KeyGrid(basic, Modifier.fillMaxWidth().height(keyHeight).then(bottom), firstIndex = 15)
+                        }
                     }
-                    Spacer(Modifier.height(10.dp))
-                    KeyGrid(basic, Modifier.fillMaxWidth().height(keyHeight).then(bottom), firstIndex = 15)
                 }
                 Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
             }
@@ -346,7 +402,7 @@ private fun scientific(vm: CalcViewModel, open: Boolean, showFold: Boolean, fold
         root,
         KeyDef("π", KeyKind.FUNCTION, "Pi", glow = Eggs.piDay()) { vm.piece("π") },
         KeyDef("^", KeyKind.FUNCTION, "Power") { vm.operator(Sym.POWER) },
-        KeyDef("!", KeyKind.FUNCTION, "Factorial") { vm.suffix(Sym.FACT) },
+        KeyDef(null, KeyKind.GOLD, "Advanced mode", icon = AppIcons.ShowChart) { vm.toggleAdvanced() },
         if (showFold) KeyDef(null, KeyKind.TOGGLE, if (open) "Fewer functions" else "More functions", icon = if (open) AppIcons.ExpandLess else AppIcons.ExpandMore) { fold(); Feel.TICK }
         else KeyDef("e", KeyKind.FUNCTION, "Euler's number") { vm.piece("e") }
     )
@@ -358,7 +414,7 @@ private fun scientific(vm: CalcViewModel, open: Boolean, showFold: Boolean, fold
             fn(vm, inv, "sin", "sin⁻¹"),
             fn(vm, inv, "cos", "cos⁻¹"),
             fn(vm, inv, "tan", "tan⁻¹"),
-            KeyDef("HEX", KeyKind.TOGGLE, "Programmer") { vm.toggleProgrammer() }
+            KeyDef("!", KeyKind.FUNCTION, "Factorial") { vm.suffix(Sym.FACT) }
         ),
         listOf(
             KeyDef("INV", KeyKind.TOGGLE, "Inverse functions", on = inv) { vm.inverse = !vm.inverse; Feel.TICK },
@@ -393,7 +449,7 @@ private fun wideScientific(vm: CalcViewModel): List<List<KeyDef?>> {
         listOf(
             KeyDef("(", KeyKind.FUNCTION, "Open parenthesis") { vm.piece("(") },
             KeyDef(")", KeyKind.FUNCTION, "Close parenthesis") { vm.suffix(Sym.CLOSE) },
-            KeyDef("HEX", KeyKind.TOGGLE, "Programmer") { vm.toggleProgrammer() }
+            KeyDef(null, KeyKind.GOLD, "Advanced mode", icon = AppIcons.ShowChart) { vm.toggleAdvanced() }
         )
     )
 }

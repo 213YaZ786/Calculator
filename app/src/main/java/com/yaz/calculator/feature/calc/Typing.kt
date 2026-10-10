@@ -124,7 +124,7 @@ class Typing(val text: TextFieldState) {
         private val STRONG = setOf(Sym.TIMES, Sym.DIVIDE, Sym.POWER)
         const val MAX_LENGTH = 1_000
 
-        fun endsValue(c: Char) = c.isDigit() || c == Sym.CLOSE || c == Sym.PI || c == Sym.E ||
+        fun endsValue(c: Char) = c.isDigit() || c == Sym.CLOSE || c == Sym.PI || c == Sym.E || c == 'x' ||
             c == Sym.FACT || c == Sym.PERCENT || c == Sym.SQUARE || Sym.isRef(c)
     }
 }

@@ -58,7 +58,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /** What a key is, which gives its colour and its motion. */
-enum class KeyKind { DIGIT, OPERATOR, EQUALS, CLEAR, BACK, FUNCTION, TOGGLE }
+enum class KeyKind { DIGIT, OPERATOR, EQUALS, CLEAR, BACK, FUNCTION, TOGGLE, GOLD }
 
 class KeyDef(
     val label: String?,
@@ -143,6 +143,8 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
         KeyKind.TOGGLE -> if (key.on) colors.primaryContainer to colors.onPrimaryContainer else Color.Unspecified to colors.primary
         KeyKind.FUNCTION, KeyKind.BACK -> Color.Unspecified to colors.primary
         KeyKind.DIGIT -> Color.Unspecified to colors.onSurface
+        // The advanced mode's own keys, in gold, as the user asked.
+        KeyKind.GOLD -> (if (glass?.dark == true) GOLD_NIGHT else GOLD_DAY) to ON_GOLD
     }
     // Coloured glass for the loud keys: the same pane, tinted.
     val look = when {
@@ -221,7 +223,7 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         // Labels sized from the key, so a tablet's keys read as well as a phone's.
                         val big = key.kind == KeyKind.DIGIT || key.kind == KeyKind.OPERATOR || key.kind == KeyKind.EQUALS || key.kind == KeyKind.CLEAR
-                        val textSize = with(density) { (side * if (big) 0.36f else 0.28f).toSp() }
+                        val textSize = with(density) { (side * if (big) 0.36f else if (key.kind == KeyKind.GOLD) 0.22f else 0.28f).toSp() }
                         if (key.icon != null) {
                             Icon(key.icon, contentDescription = null, modifier = Modifier.size(side * 0.34f))
                         } else {
@@ -240,6 +242,10 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
         }
     }
 }
+
+private val GOLD_DAY = Color(0xFFD4AF37)
+private val GOLD_NIGHT = Color(0xFFE3C565)
+private val ON_GOLD = Color(0xFF3A2C00)
 
 private fun tinted(glass: GlassLook, tint: Color) =
     GlassLook(glass.dark, glass.ground, glass.halos, tint, glass.floatTint, glass.accentTint)
