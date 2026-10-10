@@ -49,6 +49,7 @@ fun Plotter(
     shadeColor: Color = Color.Unspecified,
     traced: Double? = null,
     bound: Double? = null,
+    points: List<Pair<Double, Double>> = emptyList(),
     onTouch: (Double) -> Unit = {}
 ) {
     val colors = MaterialTheme.colorScheme
@@ -122,6 +123,15 @@ fun Plotter(
                 px += 2f
             }
             drawPath(path, color, style = Stroke(width = 3.dp.toPx()))
+        }
+
+        // STAT's points, as the TI's Stat Plot.
+        for ((x, y) in points) {
+            val at = Offset(sx(x), sy(y))
+            if (at.x.isFinite() && at.y.isFinite()) {
+                drawCircle(paper, 5.dp.toPx(), at)
+                drawCircle(axis, 3.5.dp.toPx(), at)
+            }
         }
 
         // ∫ waiting for its upper bound: the lower one drawn.

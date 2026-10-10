@@ -35,7 +35,7 @@ import org.hipparchus.optim.univariate.SearchInterval
 import org.hipparchus.optim.univariate.UnivariateObjectiveFunction
 
 /** The advanced mode's pages, as NumWorks' grapher and the TI's keys lay them out. */
-enum class Page { CALC, FUNCTIONS, GRAPH, TABLE, BASES, PROGRAMS }
+enum class Page { CALC, FUNCTIONS, GRAPH, TABLE, STATS, BASES, PROGRAMS }
 
 /** What the TI's CALC menu works out on the graph. */
 enum class CalcKind { ZEROS, MINIMUM, MAXIMUM, INTERSECTION, DERIVATIVE, INTEGRAL }
@@ -84,6 +84,10 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
         viewModelScope.launch {
             store.loaded.first { it }
             store.data.value.functions.forEachIndexed { i, f -> fields[i].setTextAndPlaceCursorAtEnd(f.expression) }
+            val d = store.data.value
+            rows = (0 until maxOf(d.l1.size, d.l2.size)).map { i ->
+                TextFieldState(d.l1.getOrElse(i) { "" }) to TextFieldState(d.l2.getOrElse(i) { "" })
+            } + (TextFieldState() to TextFieldState())
             fields.forEachIndexed { i, field ->
                 launch {
                     snapshotFlow { field.text.toString() }.collect { text ->
@@ -98,6 +102,61 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     /** The drawn curves, by index; null where a line is empty, off or does not read. */
     fun curves(): List<Curve?> = data.value.functions.mapIndexed { i, f ->
         if (!f.on) null else Curve.of(fields[i].text.toString(), degrees)
+    }
+
+    // ---------- STAT ----------
+
+    /** L1 and L2, row by row; the last row is always empty, to type a new value. */
+    var rows by mutableStateOf<List<Pair<TextFieldState, TextFieldState>>>(listOf(TextFieldState() to TextFieldState()))
+        private set
+    var cellRow by mutableIntStateOf(0)
+    var cellColumn by mutableIntStateOf(0)
+    var twoVar by mutableStateOf(false)
+    var regKind by mutableStateOf(com.yaz.calculator.engine.RegKind.LIN)
+
+    fun cell(): Typing = Typing(rows[cellRow.coerceIn(0, rows.lastIndex)].let { if (cellColumn == 0) it.first else it.second })
+
+    /** After a key on STAT: the empty last row kept, the lists saved. */
+    fun statsChanged() {
+        val last = rows.last()
+        if (last.first.text.isNotEmpty() || last.second.text.isNotEmpty()) rows = rows + (TextFieldState() to TextFieldState())
+        store.update { d -> d.copy(l1 = rows.map { it.first.text.toString() }.dropLastWhile { it.isEmpty() }, l2 = rows.map { it.second.text.toString() }.dropLastWhile { it.isEmpty() }) }
+    }
+
+    /** ↵ on STAT: down a row, as the TI's list editor. */
+    fun nextCell(): Feel {
+        cellRow = (cellRow + 1).coerceAtMost(rows.lastIndex)
+        return Feel.TICK
+    }
+
+    fun clearLists(): Feel {
+        rows = listOf(TextFieldState() to TextFieldState())
+        cellRow = 0
+        statsChanged()
+        return Feel.DONE
+    }
+
+    private fun value(t: TextFieldState): Double? =
+        t.text.toString().takeIf { it.isNotBlank() }?.let { runCatching { com.yaz.calculator.engine.Calc().evaluate(it, degrees).crValue().toDouble() }.getOrNull() }
+
+    /** The lists as numbers: rows where L1 (and L2 for two variables) read. */
+    fun data(): Pair<List<Double>, List<Double?>> {
+        val xs = ArrayList<Double>(); val ys = ArrayList<Double?>()
+        for ((a, b) in rows) {
+            val x = value(a) ?: continue
+            xs += x; ys += value(b)
+        }
+        return xs to ys
+    }
+
+    /** The regression stored as a function: the first empty Y, else Y1. */
+    fun storeRegression(equation: String): Feel {
+        val i = fields.indexOfFirst { it.text.isEmpty() }.let { if (it < 0) 0 else it }
+        fields[i].setTextAndPlaceCursorAtEnd(equation)
+        store.update { d -> d.copy(functions = d.functions.toMutableList().also { it[i] = it[i].copy(expression = equation, on = true) }) }
+        selected = i
+        page = Page.GRAPH
+        return Feel.DONE
     }
 
     // ---------- PRGM ----------

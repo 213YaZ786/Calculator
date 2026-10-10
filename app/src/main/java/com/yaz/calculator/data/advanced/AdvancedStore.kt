@@ -28,7 +28,10 @@ data class AdvancedData(
     val functions: List<Function> = List(FUNCTIONS) { Function() },
     val window: Window = Window(),
     val tableStart: Double = 0.0,
-    val tableStep: Double = 1.0
+    val tableStep: Double = 1.0,
+    /** STAT's lists L1 and L2, as typed (the app's form). */
+    val l1: List<String> = emptyList(),
+    val l2: List<String> = emptyList()
 ) {
     companion object {
         /** Y1 to Y6, as many as the TI-82's function screen. */

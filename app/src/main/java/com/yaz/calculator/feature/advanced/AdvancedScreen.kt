@@ -127,7 +127,7 @@ fun AdvancedScreen(
                 KeyGrid(programmerKeys(calc), Modifier.fillMaxWidth().weight(1f), gap = 8.dp, firstIndex = 11)
             } else {
                 // A program takes numbers: no sin row, the room goes to its fields.
-                if (adv.page != Page.PROGRAMS) {
+                if (adv.page != Page.PROGRAMS && adv.page != Page.STATS) {
                     KeyGrid(listOf(functionRow(calc, adv)), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp, firstIndex = 5)
                     Spacer(Modifier.height(8.dp))
                 }
@@ -146,7 +146,7 @@ fun AdvancedScreen(
             Spacer(Modifier.height(10.dp))
             val target = when {
                 folded -> keysHeight * 0.13f
-                adv.page == Page.PROGRAMS -> keysHeight * 0.78f
+                adv.page == Page.PROGRAMS || adv.page == Page.STATS -> keysHeight * 0.78f
                 else -> keysHeight
             }
             val height by animateDpAsState(target, spring(dampingRatio = 0.8f, stiffness = 300f), label = "keys")
@@ -223,6 +223,7 @@ private fun Screen(
                     Page.TABLE -> TablePage(adv, style) { openMenu(Menu.TABLE) }
                     Page.BASES -> ProgrammerDisplay(calc, Modifier.fillMaxSize(), chip = false)
                     Page.PROGRAMS -> ProgramsPage(adv, style)
+                    Page.STATS -> StatsPage(adv, style)
                 }
             }
         }
@@ -234,7 +235,7 @@ private fun PageTabs(adv: AdvancedViewModel) {
     val haptics = rememberHaptics()
     val colors = MaterialTheme.colorScheme
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf(Page.CALC to "Calc", Page.FUNCTIONS to "f(x)", Page.GRAPH to "Graph", Page.TABLE to "Table", Page.BASES to "HEX").forEach { (page, label) ->
+        listOf(Page.CALC to "Calc", Page.FUNCTIONS to "f(x)", Page.GRAPH to "Graph", Page.TABLE to "Table", Page.STATS to "Stat", Page.BASES to "HEX").forEach { (page, label) ->
             val on = adv.page == page
             val fill by animateColorAsState(if (on) Gold.copy(alpha = 0.32f) else Color.Transparent, label = "tab")
             Box(
@@ -350,6 +351,7 @@ private fun GraphPage(adv: AdvancedViewModel, style: NumberStyle) {
                 shadeColor = palette[(adv.shade?.curve ?: 0) % palette.size],
                 traced = adv.traced,
                 bound = adv.picking,
+                points = if (!adv.twoVar) emptyList() else adv.data().let { (xs, ys) -> xs.indices.mapNotNull { i -> ys[i]?.let { xs[i] to it } } },
                 onTouch = { x -> feelIt(haptics, adv.touch(x)) }
             )
             if (drawn.isEmpty()) Text("Y= is empty", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.Center))
@@ -431,6 +433,7 @@ private fun type(calc: CalcViewModel, adv: AdvancedViewModel, onCalc: (CalcViewM
     if (adv.page == Page.CALC) return onCalc(calc)
     // A program's fields, as the TI's Prompt; the list itself takes no typing.
     if (adv.page == Page.PROGRAMS) return adv.programTypings.getOrNull(adv.programField)?.let(onFunction) ?: Feel.REJECT
+    if (adv.page == Page.STATS) return onFunction(adv.cell()).also { adv.statsChanged() }
     if (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.BASES) adv.page = Page.FUNCTIONS
     return onFunction(adv.typings[adv.selected])
 }
@@ -507,10 +510,11 @@ private fun mainKeys(calc: CalcViewModel, adv: AdvancedViewModel, style: NumberS
             d('0'),
             KeyDef(style.point.toString(), KeyKind.DIGIT, "Point") { key(calc, adv) { it.point() } },
             KeyDef("AC", KeyKind.CLEAR, "Clear") { key(calc, adv) { it.clear() } },
-            KeyDef(if (onCalc || adv.page == Page.PROGRAMS) "=" else "↵", KeyKind.EQUALS, if (onCalc) "Equals" else if (adv.page == Page.PROGRAMS) "Run the program" else "Next function") {
+            KeyDef(if (onCalc || adv.page == Page.PROGRAMS) "=" else "↵", KeyKind.EQUALS, if (onCalc) "Equals" else if (adv.page == Page.PROGRAMS) "Run the program" else if (adv.page == Page.STATS) "Next row" else "Next function") {
                 when (adv.page) {
                     Page.CALC -> calc.equals()
                     Page.PROGRAMS -> adv.runProgram()
+                    Page.STATS -> adv.nextCell()
                     Page.FUNCTIONS -> adv.next()
                     else -> { adv.page = Page.FUNCTIONS; Feel.TICK }
                 }
