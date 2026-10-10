@@ -195,14 +195,18 @@ fun CalcScreen(
         val bottom = Modifier.padding(bottom = 12.dp)
 
         Row(Modifier.fillMaxSize()) {
+            // Beside the history, the calculator as wide as its keys need to be near round
+            // (seven columns, 58 % of the height), the history taking the rest.
+            val available = maxH - padding.calculateTopPadding()
+            val calcWidth = if (sideHistory) minOf(maxW * 0.7f, ((available * 0.58f - 32.dp) / 5) * 7 * 1.12f + 60.dp + 24.dp) else maxW
             if (sideHistory) {
-                Box(Modifier.width(maxW * 0.34f).fillMaxHeight()) {
+                Box(Modifier.weight(1f).fillMaxHeight()) {
                     HistoryList(vm, style, PaddingValues(top = padding.calculateTopPadding(), bottom = 16.dp), onTaken = {})
                 }
             }
             Column(
                 Modifier
-                    .weight(1f)
+                    .then(if (sideHistory) Modifier.width(calcWidth) else Modifier.weight(1f))
                     .fillMaxHeight()
                     .padding(top = padding.calculateTopPadding())
                     .padding(horizontal = 12.dp)
@@ -265,7 +269,7 @@ fun CalcScreen(
                         Spacer(Modifier.height(8.dp))
                         if (wide) {
                             // The display keeps its expression, result and actions (about 240 dp); the keys take the rest, near round.
-                    Row(Modifier.fillMaxWidth().height((maxH - padding.calculateTopPadding() - 260.dp).coerceIn(maxH * 0.42f, maxH * 0.7f)).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth().height(if (sideHistory) (maxH - padding.calculateTopPadding()) * 0.58f else (maxH - padding.calculateTopPadding() - 260.dp).coerceIn(maxH * 0.42f, maxH * 0.7f)).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
                                 KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
                             }
