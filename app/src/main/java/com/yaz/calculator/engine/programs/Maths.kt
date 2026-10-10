@@ -346,17 +346,6 @@ val expert: List<Program> = listOf(
         if (det == 0.0) listOf(step("det = 0"), result(t("Pas de solution unique", "No single solution")))
         else listOf(step("det = ad − bc = ${n(det)}"), result("x = ${n((e * d - b * ff) / det)}"), result("y = ${n((a * ff - e * c) / det)}"))
     },
-    Method(
-        "markov", Subject.EXPERT, w("Chaîne de Markov à deux états", "Two-state Markov chain"), "πₙ = π₀·Pⁿ,  P = (1−p p ; q 1−q)",
-        listOf(f("p", "Probabilité A → B", "Probability A → B"), f("q", "Probabilité B → A", "Probability B → A"), f("a₀", "Probabilité d'être en A au départ", "Probability of A at start"), f("n", "Nombre d'étapes", "Steps", whole = true))
-    ) { v ->
-        val p = v["p"]!!; val q = v["q"]!!; var a = v["a₀"]!!; val k = v["n"]!!.toInt()
-        require(p in 0.0..1.0 && q in 0.0..1.0 && a in 0.0..1.0 && k in 0..1_000_000)
-        repeat(k) { a = a * (1 - p) + (1 - a) * q }
-        val out = mutableListOf(result("πₙ = (${n(a)} ; ${n(1 - a)})"))
-        if (p + q > 0) out += result(t("Distribution invariante : ", "Invariant distribution: ") + "(${n(q / (p + q))} ; ${n(p / (p + q))})")
-        out
-    }
 )
 
 private fun bezout(a: BigInteger, b: BigInteger): Pair<BigInteger, BigInteger> {
@@ -398,4 +387,4 @@ private fun clean(x: Double): Double {
 }
 
 /** Every program, by subject. */
-val programs: List<Program> by lazy { maths + sequences + symbolic + formal + analysis + integrals + integralsMore + laws + probability + statistics + geometry + vectors + expert + algebra + physics + chemistry }
+val programs: List<Program> by lazy { maths + sequences + symbolic + formal + analysis + integrals + integralsMore + laws + probability + statistics + geometry + vectors + expert + graphs + algebra + physics + chemistry }

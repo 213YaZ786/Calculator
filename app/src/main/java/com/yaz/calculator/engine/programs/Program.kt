@@ -19,8 +19,8 @@ enum class Subject(val title: Words) {
     CHEMISTRY(Words("Chimie", "Chemistry"))
 }
 
-/** What a field holds: a number, a function of x, or numbers separated by the "," key. */
-enum class FieldKind { NUMBER, FUNCTION, LIST }
+/** What a field holds: a number, a function of x, numbers separated by the "," key, or words typed on the phone's keyboard. */
+enum class FieldKind { NUMBER, FUNCTION, LIST, TEXT }
 
 /**
  * A value the program asks for: its symbol, its name, its unit; [whole] for

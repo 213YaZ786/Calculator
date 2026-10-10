@@ -319,6 +319,15 @@ private fun DrawScope.drawShapeLabel(s: Shape2, w: Box2, color: Color, ink: Colo
         is Shape2.Polyline -> s.points.size >= 2 && s.points.last().y > s.points[s.points.size - 2].y
         else -> false
     }
+    // An arrow's weight beside its middle, on its left: two opposite arrows keep theirs apart.
+    if (s is Shape2.Arrow) {
+        val a = Offset(sx(s.from.x), sy(s.from.y)); val b = Offset(sx(s.to.x), sy(s.to.y))
+        val d = b - a; val len = d.getDistance().coerceAtLeast(1f)
+        val side = Offset(d.y / len, -d.x / len) * (14.dp.toPx() + text.size.height / 2f)
+        val c = (a + b) / 2f + side
+        drawText(text, topLeft = Offset((c.x - text.size.width / 2).coerceIn(0f, size.width - text.size.width), (c.y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)), color = lerp(color, ink, 0.35f))
+        return
+    }
     val place = if (rising) Offset((o.x + 10).coerceIn(0f, size.width - text.size.width), (o.y + 6).coerceIn(0f, size.height - text.size.height))
     else if (centred) Offset((o.x - text.size.width / 2).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)) else Offset((o.x + 8).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height - 4).coerceIn(0f, size.height - text.size.height))
     drawText(text, topLeft = place, color = lerp(color, ink, 0.35f))

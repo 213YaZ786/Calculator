@@ -33,6 +33,9 @@ class Inputs(private val values: Map<String, Double?>, private val texts: Map<St
     /** The field as an exact expression (fractions, √, π, ln…) for the symbolic engine. */
     fun exact(symbol: String): com.yaz.calculator.engine.cas.Ex = com.yaz.calculator.engine.cas.parse(texts[symbol].orEmpty())
 
+    /** Words typed on the phone's keyboard. */
+    fun text(symbol: String): String = texts[symbol].orEmpty()
+
     /** Three numbers: a point or a vector of space. */
     fun vec(symbol: String): Vec3 = list(symbol).let { require(it.size == 3); Vec3(it[0], it[1], it[2]) }
 }
@@ -84,6 +87,7 @@ internal fun num(symbol: String, fr: String, en: String, unit: String = "", whol
     Field(symbol, Words(fr, en), unit, whole, FieldKind.NUMBER, optional, slider, step)
 internal fun fn(symbol: String, fr: String, en: String) = Field(symbol, Words(fr, en), kind = FieldKind.FUNCTION)
 internal fun list(symbol: String, fr: String, en: String, optional: Boolean = false) = Field(symbol, Words(fr, en), kind = FieldKind.LIST, optional = optional)
+internal fun words(symbol: String, fr: String, en: String) = Field(symbol, Words(fr, en), kind = FieldKind.TEXT)
 internal fun show(v: Double) = Solve.show(v)
 /** Four significant digits, for the numbers inside a step. */
 internal fun brief(v: Double): String = if (v == 0.0 || !v.isFinite()) show(v) else show(java.math.BigDecimal(v).round(java.math.MathContext(4)).toDouble())

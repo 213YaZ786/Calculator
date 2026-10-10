@@ -201,11 +201,28 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
         p.fields.forEachIndexed { i, field ->
             val chosen = adv.programField == i
             val focus = remember(p.id, i) { FocusRequester() }
-            LaunchedEffect(chosen, p.id) { if (chosen) runCatching { focus.requestFocus() } }
+            val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+            LaunchedEffect(chosen, p.id) {
+                if (!chosen) return@LaunchedEffect
+                runCatching { focus.requestFocus() }
+                if (field.kind == com.yaz.calculator.engine.programs.FieldKind.TEXT) keyboard?.show()
+            }
             // A function or a list takes the whole width under its name; a number sits beside it.
             val wide = field.kind != com.yaz.calculator.engine.programs.FieldKind.NUMBER
             val input: @Composable (Modifier) -> Unit = { m ->
-                InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
+                if (field.kind == com.yaz.calculator.engine.programs.FieldKind.TEXT) BasicTextField(
+                    // Words: the phone's own keyboard, in capitals as the ciphers use them.
+                    state = adv.programFields[i],
+                    lineLimits = TextFieldLineLimits.SingleLine,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Characters, autoCorrectEnabled = false, imeAction = androidx.compose.ui.text.input.ImeAction.Done),
+                    // The keypad is away: the keyboard's own key runs the program.
+                    onKeyboardAction = { haptics.tick(); adv.runProgram() },
+                    textStyle = TextStyle(fontSize = 20.sp, color = colors.onSurface, textAlign = TextAlign.End),
+                    cursorBrush = SolidColor(Gold),
+                    modifier = m.focusRequester(focus)
+                        .onFocusChanged { if (it.isFocused && adv.programField != i) { adv.programField = i; adv.showingScene = false } }
+                        .semantics { contentDescription = field.symbol }
+                ) else InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
                     BasicTextField(
                         state = adv.programFields[i],
                         outputTransformation = output,

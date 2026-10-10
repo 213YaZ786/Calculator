@@ -57,7 +57,6 @@ class ProgramsTest {
         assertTrue(t, t.contains("det A = 1"))
         assertTrue(t, t.contains("A⁻¹ = (1  −1)   (−1  2)"))
         assertTrue(t, t.contains("Aⁿ = (5  3)   (3  2)"))
-        assertTrue(text("markov", "p" to 0.2, "q" to 0.3, "a₀" to 1.0, "n" to 1.0).contains("πₙ = (0.8 ; 0.2)"))
     }
 
     @Test

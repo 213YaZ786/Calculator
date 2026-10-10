@@ -123,7 +123,8 @@ fun AdvancedScreen(
     // On the graph and the table the keys fold to their gold row: the screen takes the room, as the TI's GRAPH.
     // Writing a program takes the phone's keyboard: the keys fold away entirely then.
     val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.running == null && (adv.program == null || adv.showingScene))
-    val hidden = adv.page == Page.PROGRAMS && adv.editing != null
+    // The TI-Basic editor and a field of words take the phone's keyboard.
+    val hidden = adv.page == Page.PROGRAMS && (adv.editing != null || adv.running == null && adv.program?.fields?.getOrNull(adv.programField)?.kind == com.yaz.calculator.engine.programs.FieldKind.TEXT)
     // A program reading a function of x keeps the sin row, as the f(x) page does.
     val wantsFunctions = adv.page == Page.PROGRAMS && adv.running == null && adv.program?.fields?.any { it.kind == com.yaz.calculator.engine.programs.FieldKind.FUNCTION } == true
     val keys: @Composable (Modifier) -> Unit = { m ->
