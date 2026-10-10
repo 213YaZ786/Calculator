@@ -36,7 +36,7 @@ object Eggs {
 enum class ScienceEgg {
     /** φ = (1 + √5) / 2: a golden sparkle ripple and the golden spiral. */
     GOLDEN,
-    /** c = 299 792 458 m/s: streaks of light. */
+    /** c = 299 792 458 m/s: the full-screen jump to light speed (LightSpeed). */
     LIGHT,
     /** Avogadro's 6.02214076 × 10²³: a mole of particles bursting. */
     AVOGADRO;

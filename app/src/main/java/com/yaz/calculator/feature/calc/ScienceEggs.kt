@@ -42,7 +42,7 @@ fun DrawScope.scienceEgg(
 ) {
     when (egg) {
         ScienceEgg.GOLDEN -> golden(p, display, result, ripple, phase, measurer)
-        ScienceEgg.LIGHT -> light(p, display, accent)
+        ScienceEgg.LIGHT -> Unit
         ScienceEgg.AVOGADRO -> mole(p, display, result, measurer, accent)
     }
 }
@@ -86,26 +86,6 @@ private fun DrawScope.golden(p: Float, display: Rect, result: Offset, ripple: Sp
         withTransform({ scale(0.8f + 0.2f * textIn, 0.8f + 0.2f * textIn, middle) }) {
             drawText(t, topLeft = middle - Offset(t.size.width / 2f, t.size.height / 2f))
         }
-    }
-}
-
-/** c: streaks of light shooting across the display, each at its own height and moment. */
-private fun DrawScope.light(p: Float, display: Rect, accent: Color) {
-    val n = 42
-    for (i in 0 until n) {
-        val y = size.height * frac(i * 0.618034f + 0.11f)
-        val delay = 0.45f * frac(i * 0.414214f)
-        val t = ((p - delay) / 0.45f).coerceIn(0f, 1f)
-        if (t <= 0f || t >= 1f) continue
-        val length = size.width * (0.18f + 0.25f * frac(i * 0.732f))
-        val head = -length + (size.width + 2 * length) * t
-        val thick = (3f + 4f * frac(i * 0.271f)).dp.toPx()
-        // A tail fading into the screen, the head in the accent with a light core: seen by day and by night.
-        drawLine(
-            Brush.horizontalGradient(listOf(Color.Transparent, accent.copy(alpha = 0.55f), accent), startX = head - length, endX = head),
-            Offset(head - length, y), Offset(head, y), thick, StrokeCap.Round
-        )
-        drawLine(Color.White.copy(alpha = 0.85f), Offset(head - length * 0.25f, y), Offset(head, y), thick * 0.35f, StrokeCap.Round)
     }
 }
 

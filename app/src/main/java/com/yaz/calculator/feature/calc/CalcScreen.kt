@@ -137,6 +137,8 @@ fun CalcScreen(
     }
     val accent = MaterialTheme.colorScheme.primary
     // The scientific eggs (φ, c, Avogadro), each played once after its "=".
+    var warp by remember { androidx.compose.runtime.mutableStateOf(false) }
+    if (warp) LightSpeed { warp = false }
     val egg = remember { androidx.compose.animation.core.Animatable(0f) }
     var eggStart by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     val eggText = androidx.compose.ui.text.rememberTextMeasurer()
@@ -144,6 +146,8 @@ fun CalcScreen(
         if (vm.scienceEggs == vm.scienceEggsPlayed) return@LaunchedEffect
         vm.scienceEggsPlayed = vm.scienceEggs
         val kind = vm.scienceEgg ?: return@LaunchedEffect
+        // c has its own full-screen jump to light speed.
+        if (kind == ScienceEgg.LIGHT) { warp = true; return@LaunchedEffect }
         haptics.done()
         eggStart = android.os.SystemClock.uptimeMillis()
         egg.snapTo(0f)
