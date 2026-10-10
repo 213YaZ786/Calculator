@@ -77,6 +77,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.ui.text.TextRange
@@ -93,6 +94,7 @@ import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.engine.Sym
 import com.yaz.calculator.ui.component.ZoneSurface
 import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.launch
 
 /**
  * The top of the calculator: the expression, written as the user's language
@@ -126,7 +128,32 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
     }
     val spelling = remember(style, clipboard) { SpelledClipboard(clipboard) { style.show(vm.spelled(it)) } }
 
-    BoxWithConstraints(modifier.padding(horizontal = 20.dp)) {
+    // A swipe across the display deletes the last character, one a swipe (Apple's Calculator);
+    // the expression follows the finger a little and springs back.
+    val nudge = remember { androidx.compose.animation.core.Animatable(0f) }
+    val swipeScope = androidx.compose.runtime.rememberCoroutineScope()
+    BoxWithConstraints(
+        modifier
+            .pointerInput(vm) {
+                val reach = 40.dp.toPx()
+                var travel = 0f
+                var done = false
+                detectHorizontalDragGestures(
+                    onDragStart = { travel = 0f; done = false },
+                    onDragEnd = { swipeScope.launch { nudge.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.4f, stiffness = 600f)) } },
+                    onDragCancel = { swipeScope.launch { nudge.animateTo(0f) } }
+                ) { change, dx ->
+                    change.consume()
+                    travel += dx
+                    swipeScope.launch { nudge.snapTo((travel * 0.3f).coerceIn(-reach / 2f, reach / 2f)) }
+                    if (!done && kotlin.math.abs(travel) > reach) {
+                        done = true
+                        feelIt(dropHaptics, vm.backspace())
+                    }
+                }
+            }
+            .padding(horizontal = 20.dp)
+    ) {
         val width = maxWidth
         val room = maxHeight
         // How many digits a result line holds, at the size results are written.
@@ -193,6 +220,7 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = with(density) { size.toDp() } * 1.2f)
+                            .graphicsLayer { translationX = nudge.value }
                             .focusRequester(focus)
                             // A result dragged from the tape lands where the cursor is.
                             .dragAndDropTarget(
