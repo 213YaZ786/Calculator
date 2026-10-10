@@ -1,3 +1,12 @@
+import java.net.URI
+import java.security.MessageDigest
+
+// Giac, the computer algebra system: see fetchGiac below.
+val giacCommit = "bdbb1c41fe52d8b4fb7c1d15c2deaea88fc3803c"
+val giacSha = "0b5ddcad99da975cc8b6c21c01e8c42ddd4b058fb38fba72ee438727aa577caa"
+val giacRoot = layout.buildDirectory.dir("giac").get().asFile
+val giacSrc = File(giacRoot, "giac-$giacCommit")
+
 plugins {
     // AGP 9 compiles Kotlin itself (built-in Kotlin), so no kotlin-android here.
     alias(libs.plugins.android.application)
@@ -15,6 +24,21 @@ android {
         targetSdk = 37
         versionCode = 7
         versionName = "0.2.0"
+        // Giac, for 64-bit ARM phones (the emulators run it translated): every
+        // native library of the APK for that one, so it is the one Android picks.
+        ndk { abiFilters += "arm64-v8a" }
+        externalNativeBuild {
+            cmake {
+                abiFilters("arm64-v8a")
+                arguments("-DGIAC_SRC=${giacSrc.absolutePath}", "-DANDROID_STL=c++_static")
+            }
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
     }
 
     signingConfigs {
@@ -65,6 +89,8 @@ android {
             "/META-INF/INDEX.LIST",
             "/META-INF/DEPENDENCIES"
         )
+        // Giac compressed in the APK (8 MB instead of 19), unpacked once at install.
+        jniLibs.useLegacyPackaging = true
     }
 }
 
@@ -94,3 +120,36 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }
+
+// The computer algebra system: Giac (GPL-3.0, Bernard Parisse), from
+// GeoGebra's mirror (github.com/geogebra/giac) at the pinned commit, its
+// archive checked against its SHA-256, then built here. One fix applied:
+// a 24-byte buffer read with 32 bytes in global.cc (Android's FORTIFY
+// refuses it).
+val fetchGiac by tasks.registering {
+    val root = giacRoot
+    val src = giacSrc
+    val commit = giacCommit
+    val sha = giacSha
+    inputs.property("commit", commit)
+    outputs.dir(src)
+    doLast {
+        if (File(src, "src/giac/cpp/global.cc").exists()) return@doLast
+        val bytes = URI("https://github.com/geogebra/giac/archive/$commit.tar.gz").toURL().openStream().use { it.readBytes() }
+        val got = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
+        check(got == sha) { "Giac: checksum does not match" }
+        root.mkdirs()
+        val archive = File(root, "giac.tar.gz").apply { writeBytes(bytes) }
+        val tar = ProcessBuilder("tar", "xzf", archive.path, "-C", root.path, "giac-$commit/src/giac", "giac-$commit/src/jni/prebuilt/android").inheritIO().start()
+        check(tar.waitFor() == 0) { "Giac: could not unpack" }
+        archive.delete()
+        val global = File(src, "src/giac/cpp/global.cc")
+        val fixed = global.readText().replace("unsigned char buf[24];\n    int i=fread(buf,1,32,f);", "unsigned char buf[32];\n    int i=fread(buf,1,32,f);")
+        check(fixed != global.readText()) { "Giac: the buffer fix no longer applies" }
+        global.writeText(fixed)
+    }
+}
+tasks.configureEach {
+    if (name.startsWith("configureCMake") || name.startsWith("buildCMake") || name.startsWith("generateJsonModel")) dependsOn(fetchGiac)
+}
+

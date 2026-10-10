@@ -141,13 +141,18 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                     onClick = { uriHandler.openUri("https://github.com/LineageOS/android_packages_apps_ExactCalculator") }
                 )
                 SettingRow(
+                    title = "Computer algebra",
+                    summary = "Giac by Bernard Parisse, Université Grenoble Alpes, GPL-3.0, with GMP and MPFR, LGPL-3.0",
+                    onClick = { uriHandler.openUri("https://github.com/geogebra/giac") }
+                )
+                SettingRow(
                     title = "Exchange rates",
                     summary = "exchange-api by Fawaz Ahmed, public domain",
                     onClick = { uriHandler.openUri("https://github.com/fawazahmed0/exchange-api") }
                 )
                 SettingRow(
                     title = "Source code",
-                    summary = "github.com/213YaZ786/Calculator",
+                    summary = "github.com/213YaZ786/Calculator, GPL-3.0",
                     onClick = { uriHandler.openUri("https://github.com/213YaZ786/Calculator") }
                 )
             }

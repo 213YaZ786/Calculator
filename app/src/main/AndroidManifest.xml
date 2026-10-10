@@ -60,5 +60,11 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- Giac computes here: its own process, no permission, no files, no network. -->
+        <service
+            android:name=".engine.giac.GiacService"
+            android:exported="false"
+            android:isolatedProcess="true"
+            android:process=":giac" />
     </application>
 </manifest>

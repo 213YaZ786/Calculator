@@ -67,8 +67,8 @@ data class Figure(
             is Shape2.Dots -> s.points.forEach(::add)
             is Shape2.Circle -> { add(s.centre - P2(s.radius, s.radius)); add(s.centre + P2(s.radius, s.radius)) }
         }
-        // Curves alone: their bounds when given, else −5..5.
-        if (xs.isEmpty()) sampled.mapNotNull { it.second }.forEach { r -> xs += r.start; xs += r.endInclusive }
+        // Curves' own bounds count too, else a single point would set the whole window.
+        sampled.mapNotNull { it.second }.forEach { r -> xs += r.start; xs += r.endInclusive }
         var x0 = xs.minOrNull() ?: -5.0; var x1 = xs.maxOrNull() ?: 5.0
         if (x1 - x0 < 1e-9) { x0 -= 1; x1 += 1 }
         val pad = (x1 - x0) * 0.12

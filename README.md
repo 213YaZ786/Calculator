@@ -25,7 +25,10 @@ A calculator for Android. No account, no tracking, no ads.
   Graphics' constructive reals) and ExactCalculator's UnifiedReal and
   BoundedRational (Android Open Source Project, LineageOS), Apache
   License 2.0.
+- Computer algebra: Giac by Bernard Parisse (Université Grenoble Alpes),
+  GPL-3.0, from GeoGebra's mirror, with GMP and MPFR (LGPL-3.0).
+- Numerical methods: Hipparchus, Apache License 2.0.
 - Exchange rates: exchange-api by Fawaz Ahmed, public domain.
 - Icons: Material Icons by Google, Apache License 2.0.
 
-MIT licence for the rest.
+GPL-3.0 for the whole.

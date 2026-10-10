@@ -54,7 +54,10 @@ val symbolic: List<Program> = listOf(
     ) { v ->
         val f = v.exact("f")
         val p = integrate(f, french())
-        val r = p.result ?: return@Rich lines(res(noPrimitive()))
+        // Beyond the school methods: Giac, checked by its derivative too.
+        val r = p.result ?: giacPrimitive(f)?.let { g ->
+            return@Rich lines(res("F(x) = ${exact(g)} + C"), stp(say("Calcul formel (Giac), vérifié : F′(x) = f(x)", "Computer algebra (Giac), checked: F′(x) = f(x)")))
+        } ?: return@Rich lines(res(noPrimitive()))
         Outcome(listOf(res("F(x) = ${exact(r)} + C")) + p.steps.map { stp(it) } + stp(say("Vérifié : F′(x) = f(x)", "Checked: F′(x) = f(x)")))
     },
     Rich(
@@ -64,7 +67,7 @@ val symbolic: List<Program> = listOf(
         val f = v.exact("f")
         val a = v.exact("a"); val b = v.exact("b")
         val p = integrate(f, french())
-        val r = p.result ?: return@Rich lines(res(noPrimitive()))
+        val r = p.result ?: giacPrimitive(f) ?: return@Rich lines(res(noPrimitive()))
         val value = definite(r, a, b)
         Outcome(
             listOf(
@@ -111,7 +114,9 @@ val symbolic: List<Program> = listOf(
                 parts += "($factor)" + if (m > 1) m.toString().map { "⁰¹²³⁴⁵⁶⁷⁸⁹"[it - '0'] }.joinToString("") else ""
             }
             if (degreeOf(rest) >= 1) parts += "(${exact(polyEx(rest.mapValues { it.value / lead }))})"
-            out += res(say("Factorisé : ", "Factored: ") + parts.joinToString(""))
+            // Giac goes on where rational roots stop: x⁴ + 4 = (x² − 2x + 2)(x² + 2x + 2).
+            val complete = if (degreeOf(rest) >= 2) giacFactor(f) else null
+            out += res(say("Factorisé : ", "Factored: ") + (complete?.let { exact(it) } ?: parts.joinToString("")))
             if (roots.isNotEmpty()) out += stp(say("Racines rationnelles : ", "Rational roots: ") + roots.joinToString("  ") { (r, m) -> exact(Num(r)) + if (m > 1) " (×$m)" else "" })
         }
         Outcome(out)

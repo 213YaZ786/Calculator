@@ -12,6 +12,7 @@ class CalculatorApplication : Application() {
         super.onCreate()
         // Nothing of the app starts in an isolated process.
         if (android.os.Process.isIsolated()) return
+        com.yaz.calculator.engine.giac.Giac.attach(this)
         startKoin {
             androidLogger(if (BuildConfig.DEBUG) Level.DEBUG else Level.NONE)
             androidContext(this@CalculatorApplication)

@@ -1,0 +1,36 @@
+# Once a week: has GeoGebra's mirror of Giac moved past the commit the app
+# pins? If so, an issue says which, with the archive's SHA-256 to pin it.
+# Nothing changes by itself: a new Giac is tested before it reaches anyone.
+name: Pinned engines
+
+on:
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Compare with the newest commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pinned=$(grep -oP 'val giacCommit = "\K[0-9a-f]+' app/build.gradle.kts)
+          latest=$(gh api repos/geogebra/giac/commits/master -q .sha)
+          echo "Giac pinned $pinned, latest $latest"
+          if [ "$pinned" != "$latest" ]; then
+            title="Giac ${latest:0:12} is out (the app uses ${pinned:0:12})"
+            if gh issue list --state open --search "\"Giac ${latest:0:12}\" in:title" --json number -q '.[0].number' | grep -q .; then exit 0; fi
+            curl -fsSL -o giac.tar.gz "https://github.com/geogebra/giac/archive/$latest.tar.gz"
+            gh issue create --title "$title" --body "Changes: https://github.com/geogebra/giac/compare/$pinned...$latest"$'\n\n'"SHA-256 of the archive: \`$(sha256sum giac.tar.gz | cut -d' ' -f1)\`"$'\n\n'"To try it: set giacCommit and giacSha in app/build.gradle.kts, build (the buffer fix must still apply), then test the computer algebra programs before releasing."
+          fi
