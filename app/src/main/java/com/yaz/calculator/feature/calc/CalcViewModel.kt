@@ -143,9 +143,14 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
     var revealsPlayed = 0
 
     /** AC, or a long press on ⌫: the reveal runs, then [clear] under it. */
-    fun clearWithReveal(from: androidx.compose.ui.geometry.Offset): Feel {
+    /** Whether the running clear sparkles (a long press on ⌫, Android 12's ripple) or reveals (AC). */
+    var sparkles = false
+        private set
+
+    fun clearWithReveal(from: androidx.compose.ui.geometry.Offset, sparkle: Boolean = false): Feel {
         if (text.text.isEmpty() && previous == null && error == null) return Feel.REJECT
         clearFrom = from
+        sparkles = sparkle
         reveals++
         return Feel.DONE
     }

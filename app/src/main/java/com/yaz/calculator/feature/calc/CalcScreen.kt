@@ -40,6 +40,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
@@ -69,6 +70,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.foundation.layout.size
 import com.yaz.calculator.ui.component.ZoneSurface
+import com.yaz.calculator.ui.component.SparkleRipple
 import com.yaz.calculator.ui.component.sink
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
@@ -100,9 +102,22 @@ fun CalcScreen(
     var origin by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val reveal = remember { androidx.compose.animation.core.Animatable(0f) }
     val fade = remember { androidx.compose.animation.core.Animatable(0f) }
+    val sparkleRipple = remember { if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) SparkleRipple() else null }
+    val sparkle = remember { androidx.compose.animation.core.Animatable(0f) }
+    var sparkleStart by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
     androidx.compose.runtime.LaunchedEffect(vm.reveals) {
         if (vm.reveals == vm.revealsPlayed) return@LaunchedEffect
         vm.revealsPlayed = vm.reveals
+        if (sparkleRipple != null && vm.sparkles) {
+            // Android 12's sparkle ripple, at RippleAnimationSession's pace.
+            vm.clear()
+            sparkleStart = android.os.SystemClock.uptimeMillis()
+            sparkle.snapTo(0f)
+            sparkle.animateTo(0.5f, tween(SparkleRipple.ENTER_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+            sparkle.animateTo(1f, tween(SparkleRipple.EXIT_MS, easing = androidx.compose.animation.core.LinearEasing))
+            sparkle.snapTo(0f)
+            return@LaunchedEffect
+        }
         fade.snapTo(1f)
         reveal.snapTo(0f)
         // Cleared as the reveal starts (AOSP's onAnimationStart): what is typed meanwhile stays.
@@ -119,6 +134,15 @@ fun CalcScreen(
             .onGloballyPositioned { origin = it.positionInRoot() }
             .drawWithContent {
                 drawContent()
+                if (sparkleRipple != null && sparkle.value > 0f && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    // Over the whole screen, from ⌫.
+                    val centre = vm.clearFrom - origin
+                    val far = listOf(Offset.Zero, Offset(size.width, 0f), Offset(0f, size.height), Offset(size.width, size.height)).maxOf { (it - centre).getDistance() }
+                    val elapsed = android.os.SystemClock.uptimeMillis() - sparkleStart
+                    // RippleShader.setRadius: the bounds' radius × 2.3.
+                    sparkleRipple.update(centre, size, far * 2.3f, sparkle.value, sparkleStart % 100_000 + elapsed * SparkleRipple.PHASE_PER_MS, accent.copy(alpha = 0.45f), androidx.compose.ui.graphics.Color.White)
+                    drawRect(androidx.compose.ui.graphics.ShaderBrush(sparkleRipple.shader))
+                }
                 if (reveal.value > 0f && fade.value > 0f) {
                     val area = androidx.compose.ui.geometry.Rect(displayRect.left - origin.x, 0f, displayRect.right - origin.x, displayRect.bottom - origin.y)
                     val centre = vm.clearFrom - origin
@@ -308,7 +332,7 @@ private fun basicKeys(vm: CalcViewModel, style: NumberStyle): List<List<KeyDef?>
         listOf(
             d('0'),
             KeyDef(style.point.toString(), KeyKind.DIGIT, "Point") { vm.point() },
-            KeyDef(null, KeyKind.BACK, "Delete, hold to clear", icon = AppIcons.Backspace, longPress = { vm.clearWithReveal(it) }) { vm.backspace() },
+            KeyDef(null, KeyKind.BACK, "Delete, hold to clear", icon = AppIcons.Backspace, longPress = { vm.clearWithReveal(it, sparkle = true) }) { vm.backspace() },
             KeyDef("=", KeyKind.EQUALS, "Equals") { vm.equals() }
         )
     )
