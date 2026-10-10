@@ -13,6 +13,8 @@ import com.yaz.calculator.data.advanced.AdvancedStore
 import com.yaz.calculator.data.advanced.Window
 import com.yaz.calculator.data.settings.SettingsStore
 import com.yaz.calculator.engine.Curve
+import com.yaz.calculator.engine.programs.Outcome
+import com.yaz.calculator.engine.programs.Program
 import com.yaz.calculator.feature.calc.Feel
 import com.yaz.calculator.feature.calc.Typing
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +35,7 @@ import org.hipparchus.optim.univariate.SearchInterval
 import org.hipparchus.optim.univariate.UnivariateObjectiveFunction
 
 /** The advanced mode's pages, as NumWorks' grapher and the TI's keys lay them out. */
-enum class Page { CALC, FUNCTIONS, GRAPH, TABLE, BASES }
+enum class Page { CALC, FUNCTIONS, GRAPH, TABLE, BASES, PROGRAMS }
 
 /** What the TI's CALC menu works out on the graph. */
 enum class CalcKind { ZEROS, MINIMUM, MAXIMUM, INTERSECTION, DERIVATIVE, INTEGRAL }
@@ -96,6 +98,42 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     /** The drawn curves, by index; null where a line is empty, off or does not read. */
     fun curves(): List<Curve?> = data.value.functions.mapIndexed { i, f ->
         if (!f.on) null else Curve.of(fields[i].text.toString(), degrees)
+    }
+
+    // ---------- PRGM ----------
+
+    /** The program open on the PRGM page, null for the list. */
+    var program by mutableStateOf<Program?>(null)
+        private set
+    var programFields by mutableStateOf<List<TextFieldState>>(emptyList())
+        private set
+    var programTypings by mutableStateOf<List<Typing>>(emptyList())
+        private set
+    var programField by mutableIntStateOf(0)
+    var outcome by mutableStateOf<Outcome?>(null)
+        private set
+
+    fun open(p: Program?) {
+        program = p
+        programFields = p?.fields?.map { TextFieldState() }.orEmpty()
+        programTypings = programFields.map(::Typing)
+        programField = 0
+        outcome = null
+    }
+
+    /** "=" on a program: each field read as an expression (6.67×10^−11 works), the empty ones left to find. */
+    fun runProgram(): Feel {
+        val p = program ?: return Feel.REJECT
+        val values = HashMap<String, Double?>()
+        p.fields.forEachIndexed { i, f ->
+            val text = programFields[i].text.toString()
+            values[f.symbol] = if (text.isBlank()) null else {
+                runCatching { com.yaz.calculator.engine.Calc().evaluate(text, degrees).crValue().toDouble() }.getOrNull()
+                    ?: run { outcome = Outcome(listOf(com.yaz.calculator.engine.programs.Line(UNREADABLE.get().format(f.symbol)))); return Feel.REJECT }
+            }
+        }
+        outcome = p.run(values)
+        return if (outcome!!.lines.any { it.result }) Feel.DONE else Feel.REJECT
     }
 
     fun toggle(i: Int): Feel {
@@ -270,6 +308,7 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     }
 
     private companion object {
+        val UNREADABLE = com.yaz.calculator.engine.programs.Words("%s ne se lit pas.", "%s does not read.")
         const val SAMPLES = 600
         const val MAX_EVALUATIONS = 100_000
     }

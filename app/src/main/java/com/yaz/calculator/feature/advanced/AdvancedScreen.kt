@@ -115,7 +115,7 @@ fun AdvancedScreen(
     val haptics = rememberHaptics()
     var menu by remember { mutableStateOf(Menu.NONE) }
     // On the graph and the table the keys fold to their gold row: the screen takes the room, as the TI's GRAPH.
-    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE)
+    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.program == null)
     val keys: @Composable (Modifier) -> Unit = { m ->
         Column(m) {
             KeyGrid(listOf(goldRow(adv, onQuit) { menu = it }), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp)
@@ -126,8 +126,11 @@ fun AdvancedScreen(
                 Spacer(Modifier.height(8.dp))
                 KeyGrid(programmerKeys(calc), Modifier.fillMaxWidth().weight(1f), gap = 8.dp, firstIndex = 11)
             } else {
-                KeyGrid(listOf(functionRow(calc, adv)), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp, firstIndex = 5)
-                Spacer(Modifier.height(8.dp))
+                // A program takes numbers: no sin row, the room goes to its fields.
+                if (adv.page != Page.PROGRAMS) {
+                    KeyGrid(listOf(functionRow(calc, adv)), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp, firstIndex = 5)
+                    Spacer(Modifier.height(8.dp))
+                }
                 KeyGrid(mainKeys(calc, adv, style), Modifier.fillMaxWidth().weight(1f), gap = 8.dp, firstIndex = 10)
             }
         }
@@ -141,7 +144,12 @@ fun AdvancedScreen(
         Column(modifier) {
             Screen(calc, adv, style, calcDisplay, { menu = it }, Modifier.weight(1f).fillMaxWidth())
             Spacer(Modifier.height(10.dp))
-            val height by animateDpAsState(if (folded) keysHeight * 0.13f else keysHeight, spring(dampingRatio = 0.8f, stiffness = 300f), label = "keys")
+            val target = when {
+                folded -> keysHeight * 0.13f
+                adv.page == Page.PROGRAMS -> keysHeight * 0.78f
+                else -> keysHeight
+            }
+            val height by animateDpAsState(target, spring(dampingRatio = 0.8f, stiffness = 300f), label = "keys")
             keys(Modifier.fillMaxWidth().height(height))
         }
     }
@@ -168,7 +176,8 @@ fun AdvancedScreen(
                 "Square" to { adv.squareWindow() },
                 "Fit" to { adv.fitWindow() },
                 "Zoom in" to { adv.zoom(0.5) },
-                "Zoom out" to { adv.zoom(2.0) }
+                "Zoom out" to { adv.zoom(2.0) },
+                "Window…" to { menu = Menu.WINDOW }
             ).map { (label, action) -> label to { adv.page = Page.GRAPH; haptics.tick(); action() } },
             onDismiss = { menu = Menu.NONE }
         )
@@ -213,6 +222,7 @@ private fun Screen(
                     Page.GRAPH -> GraphPage(adv, style)
                     Page.TABLE -> TablePage(adv, style) { openMenu(Menu.TABLE) }
                     Page.BASES -> ProgrammerDisplay(calc, Modifier.fillMaxSize(), chip = false)
+                    Page.PROGRAMS -> ProgramsPage(adv, style)
                 }
             }
         }
@@ -419,6 +429,8 @@ private const val TABLE_ROWS = 1000
 /** The keys type into the calculator on the Calc page, else into the chosen function. */
 private fun type(calc: CalcViewModel, adv: AdvancedViewModel, onCalc: (CalcViewModel) -> Feel = { Feel.REJECT }, onFunction: (com.yaz.calculator.feature.calc.Typing) -> Feel): Feel {
     if (adv.page == Page.CALC) return onCalc(calc)
+    // A program's fields, as the TI's Prompt; the list itself takes no typing.
+    if (adv.page == Page.PROGRAMS) return adv.programTypings.getOrNull(adv.programField)?.let(onFunction) ?: Feel.REJECT
     if (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.BASES) adv.page = Page.FUNCTIONS
     return onFunction(adv.typings[adv.selected])
 }
@@ -465,7 +477,7 @@ private fun goldRow(adv: AdvancedViewModel, onQuit: () -> Unit, open: (Menu) -> 
     KeyDef("MATH", KeyKind.GOLD, "Math functions", dim = adv.page == Page.BASES) { if (adv.page == Page.BASES) Feel.REJECT else { open(Menu.MATH); Feel.TICK } },
     KeyDef("CALC", KeyKind.GOLD, "Calculate on the graph", dim = adv.page == Page.BASES) { if (adv.page == Page.BASES) Feel.REJECT else { open(Menu.CALC); Feel.TICK } },
     KeyDef("ZOOM", KeyKind.GOLD, "Zoom", dim = adv.page == Page.BASES) { if (adv.page == Page.BASES) Feel.REJECT else { open(Menu.ZOOM); Feel.TICK } },
-    KeyDef("WINDOW", KeyKind.GOLD, "Window", dim = adv.page == Page.BASES) { if (adv.page == Page.BASES) Feel.REJECT else { open(Menu.WINDOW); Feel.TICK } },
+    KeyDef("PRGM", KeyKind.GOLD, "Programs") { adv.page = Page.PROGRAMS; adv.open(null); Feel.TICK },
     KeyDef(null, KeyKind.GOLD, "Back to the calculator", icon = AppIcons.Close) { onQuit(); Feel.DONE }
 )
 
@@ -495,9 +507,10 @@ private fun mainKeys(calc: CalcViewModel, adv: AdvancedViewModel, style: NumberS
             d('0'),
             KeyDef(style.point.toString(), KeyKind.DIGIT, "Point") { key(calc, adv) { it.point() } },
             KeyDef("AC", KeyKind.CLEAR, "Clear") { key(calc, adv) { it.clear() } },
-            KeyDef(if (onCalc) "=" else "↵", KeyKind.EQUALS, if (onCalc) "Equals" else "Next function") {
+            KeyDef(if (onCalc || adv.page == Page.PROGRAMS) "=" else "↵", KeyKind.EQUALS, if (onCalc) "Equals" else if (adv.page == Page.PROGRAMS) "Run the program" else "Next function") {
                 when (adv.page) {
                     Page.CALC -> calc.equals()
+                    Page.PROGRAMS -> adv.runProgram()
                     Page.FUNCTIONS -> adv.next()
                     else -> { adv.page = Page.FUNCTIONS; Feel.TICK }
                 }
