@@ -349,7 +349,9 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
                 d.copy(entries = (d.entries + entry).takeLast(Ledger.MAX_ENTRIES))
             }
         }
-        exactForm = compute(LIVE_MS) {
+        // A numerical result (nDeriv, fnInt, fMin, fMax) has no exact form to show.
+        val numerical = NUMERICAL.any { expression.contains(it) }
+        exactForm = if (numerical) null else compute(LIVE_MS) {
             Outcome.Value(value, Written(nice(value, written), exact = true, more = false))
         }.let { (it as? Outcome.Value)?.written?.text?.takeIf(String::isNotEmpty) }
         extra = 0
@@ -574,3 +576,6 @@ private class Screen(
     val live: String?,
     val extra: Int
 )
+
+/** The functions worked out numerically, whose results are no exact numbers. */
+private val NUMERICAL = listOf("nDeriv(", "fnInt(", "fMin(", "fMax(")

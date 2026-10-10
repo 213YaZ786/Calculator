@@ -480,7 +480,8 @@ private fun mainKeys(calc: CalcViewModel, adv: AdvancedViewModel, style: NumberS
     val onCalc = adv.page == Page.CALC
     return listOf(
         listOf(
-            KeyDef("x", KeyKind.FUNCTION, "x", dim = onCalc) { type(calc, adv, { Feel.REJECT }) { it.piece("x") } },
+            // x in a function, or in nDeriv, fnInt, Σ, fMin, fMax on the Calc page.
+            KeyDef("x", KeyKind.FUNCTION, "x") { key(calc, adv) { it.piece("x") } },
             KeyDef("( )", KeyKind.FUNCTION, "Parenthesis") { key(calc, adv) { it.parenthesis() } },
             KeyDef(if (style.point == ',') ";" else ",", KeyKind.FUNCTION, "Next argument") { key(calc, adv) { it.piece(Sym.ARG.toString()) } },
             KeyDef(null, KeyKind.BACK, "Delete", icon = AppIcons.Backspace) { key(calc, adv) { it.backspace() } },
