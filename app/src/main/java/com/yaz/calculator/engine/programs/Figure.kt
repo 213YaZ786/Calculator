@@ -48,7 +48,9 @@ data class Figure(
     val shapes: List<Shape2>,
     val staged: Boolean = false,
     val window: Box2? = null,
-    val square: Boolean = false
+    val square: Boolean = false,
+    /** A diagram (a tree, a board): no grid, no axes. */
+    val plain: Boolean = false
 ) {
     /** The part of the plane to show, the axes' origin in sight when near. */
     fun frame(): Box2 {

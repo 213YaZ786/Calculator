@@ -129,7 +129,7 @@ fun FigureView(
                 fun sx(x: Double) = ((x - w.xMin) / (w.xMax - w.xMin) * size.width).toFloat()
                 fun sy(y: Double) = (size.height - (y - w.yMin) / (w.yMax - w.yMin) * size.height).toFloat()
                 fun at(p: P2) = Offset(sx(p.x), sy(p.y))
-                gridAndAxes(Window(w.xMin, w.xMax, w.yMin, w.yMax), measurer, label, style, grid, axis, ::sx, ::sy)
+                if (!figure.plain) gridAndAxes(Window(w.xMin, w.xMax, w.yMin, w.yMax), measurer, label, style, grid, axis, ::sx, ::sy)
                 val p = drawn.value
                 // Flat shapes under the lines, in the figure's order.
                 figure.shapes.forEachIndexed { i, s ->
@@ -139,9 +139,10 @@ fun FigureView(
                     when (s) {
                         is Shape2.Area -> drawArea(s, t, color, palette[(s.tone + 1) % palette.size], w, ::sx, ::sy)
                         is Shape2.Polygon -> {
-                            // Rising from the axis.
+                            // Rising from its base: the axis when it stands on it, else its lowest side.
+                            val base = if (s.corners.any { it.y == 0.0 }) 0.0 else s.corners.minOf { it.y }
                             val path = Path()
-                            s.corners.forEachIndexed { j, c -> val o = Offset(sx(c.x), sy(c.y * t)); if (j == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
+                            s.corners.forEachIndexed { j, c -> val o = Offset(sx(c.x), sy(base + (c.y - base) * t)); if (j == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
                             path.close()
                             drawPath(path, color.copy(alpha = 0.22f))
                             drawPath(path, color.copy(alpha = 0.8f), style = Stroke(width = 1.4.dp.toPx()))
