@@ -55,6 +55,28 @@ class SheetStore(context: Context, private val scope: CoroutineScope) {
 
     fun delete(id: String) = change { list -> list.filter { it.id != id } }
 
+    /** A sheet deleted by a swipe, put back where it was. */
+    fun restore(sheet: Sheet, at: Int) = change { list -> if (list.any { it.id == sheet.id }) list else list.toMutableList().apply { add(at.coerceIn(0, size), sheet) } }
+
+    /** A copy, first in the list, its name marked as a copy. */
+    fun duplicate(id: String, copyWord: String) = change { list ->
+        val sheet = list.firstOrNull { it.id == id } ?: return@change list
+        val lines = sheet.text.lines().toMutableList()
+        val first = lines.indexOfFirst { it.isNotBlank() }
+        if (first >= 0) lines[first] = lines[first].trimEnd() + " ($copyWord)"
+        listOf(Sheet(UUID.randomUUID().toString(), lines.joinToString("\n"), System.currentTimeMillis())) + list
+    }
+
+    /** The name is the first line: a heading put first, or the first line written over. */
+    fun rename(id: String, name: String) = change { list ->
+        val sheet = list.firstOrNull { it.id == id } ?: return@change list
+        val lines = sheet.text.lines().toMutableList()
+        val first = lines.indexOfFirst { it.isNotBlank() }
+        val heading = "# " + name.trim()
+        if (first >= 0 && lines[first].trimStart().startsWith("#")) lines[first] = heading else lines.add(0, heading)
+        list.map { if (it.id == id) it.copy(text = lines.joinToString("\n"), updated = System.currentTimeMillis()) else it }
+    }
+
     /** A sheet left empty goes when it is closed. */
     fun dropIfEmpty(id: String) = change { list -> list.filter { it.id != id || it.text.isNotBlank() } }
 
