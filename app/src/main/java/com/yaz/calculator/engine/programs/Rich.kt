@@ -25,6 +25,9 @@ class Inputs(private val values: Map<String, Double?>, private val texts: Map<St
         Calc().evaluate(part, degrees).crValue().toDouble()
     }
 
+    /** The field as an exact expression (fractions, √, π, ln…) for the symbolic engine. */
+    fun exact(symbol: String): com.yaz.calculator.engine.cas.Ex = com.yaz.calculator.engine.cas.parse(texts[symbol].orEmpty())
+
     /** Three numbers: a point or a vector of space. */
     fun vec(symbol: String): Vec3 = list(symbol).let { require(it.size == 3); Vec3(it[0], it[1], it[2]) }
 }

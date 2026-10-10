@@ -320,7 +320,8 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
         val texts = HashMap<String, String>()
         p.fields.forEachIndexed { i, f ->
             val text = programFields[i].text.toString()
-            // A function of x or a list is read by the program itself.
+            // Every field's text, for the exact engine; a function of x or a list is read by the program itself.
+            texts[f.symbol] = text
             if (f.kind != com.yaz.calculator.engine.programs.FieldKind.NUMBER) {
                 texts[f.symbol] = text
                 values[f.symbol] = null
