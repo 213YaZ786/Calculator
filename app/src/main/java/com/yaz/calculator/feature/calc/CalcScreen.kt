@@ -59,6 +59,17 @@ import com.yaz.calculator.ui.glass.LocalGlass
 import com.yaz.calculator.ui.glass.groundHere
 import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.first
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.size
+import com.yaz.calculator.ui.component.ZoneSurface
+import com.yaz.calculator.ui.component.sink
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -219,8 +230,17 @@ private fun ResultActions(vm: CalcViewModel, style: NumberStyle) {
     val menu = rememberPillMenu()
     val ledger by vm.entries.collectAsState()
     val result = if (vm.evaluated) vm.resultText() else null
-    AnimatedVisibility(visible = result != null || ledger.memory != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
+    val offer = vm.offer
+    // The offer stays a few seconds, and goes as soon as the user types on.
+    LaunchedEffect(offer) {
+        if (offer == null) return@LaunchedEffect
+        launch { snapshotFlow { vm.text.text.toString() }.first { it != vm.offerText }; vm.dropOffer() }
+        delay(OFFER_MS)
+        vm.dropOffer()
+    }
+    AnimatedVisibility(visible = result != null || ledger.memory != null || offer != null, enter = scaleIn() + fadeIn(), exit = scaleOut() + fadeOut()) {
         Row(Modifier.padding(top = 4.dp, bottom = 4.dp).then(menu.tracker), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (offer != null) UndoPill(offer) { feelIt(haptics, vm.undoOrRedo()) }
             if (result != null) {
                 val text = style.show(result)
                 var copied by remember { mutableStateOf(false) }
@@ -242,7 +262,7 @@ private fun ResultActions(vm: CalcViewModel, style: NumberStyle) {
                 }
             }
             if (vm.unfoldable) ResultAction(AppIcons.ExpandMore, "More digits") { if (vm.unfold()) haptics.tick() }
-            ResultAction(null, "Memory", sign = "M") { menu.open() }
+            if (result != null || ledger.memory != null) ResultAction(null, "Memory", sign = "M") { menu.open() }
             PillMenu(
                 menu,
                 buildList {
@@ -347,3 +367,22 @@ private fun fn(vm: CalcViewModel, inv: Boolean, name: String, inverse: String) =
 /** AOSP Calculator's reveal: android's long and medium animation times. */
 private const val REVEAL_MS = 500
 private const val FADE_MS = 400
+
+/** Undo after a clear, Redo after an undo: a pill beside the result's actions. */
+@Composable
+private fun UndoPill(offer: Offer, onClick: () -> Unit) {
+    ZoneSurface(shape = CircleShape, accent = true, onClick = onClick, modifier = Modifier.height(44.dp).sink(0.9f)) {
+        AnimatedContent(offer, transitionSpec = { (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut()) }, label = "offer") { o ->
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // The arrow turns back the way it points, once, as it comes.
+                val turn = remember { androidx.compose.animation.core.Animatable(if (o == Offer.UNDO) 90f else -90f) }
+                LaunchedEffect(Unit) { turn.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 400f)) }
+                Icon(if (o == Offer.UNDO) AppIcons.Undo else AppIcons.Redo, contentDescription = null, modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = turn.value })
+                Text(if (o == Offer.UNDO) "Undo" else "Redo", style = MaterialTheme.typography.labelLarge)
+            }
+        }
+    }
+}
+
+/** As long as a snackbar with an action (SnackbarDuration.Long). */
+private const val OFFER_MS = 10_000L

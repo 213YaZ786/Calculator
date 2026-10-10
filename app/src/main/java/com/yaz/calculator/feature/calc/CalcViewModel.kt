@@ -144,7 +144,56 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         return Feel.DONE
     }
 
+    /** What a clear took away, offered back for a few seconds (PCalc, Kalkyl): Undo, then Redo. */
+    var offer by mutableStateOf<Offer?>(null)
+        private set
+
+    private var cleared: Screen? = null
+
+    /** The expression as the offer left it: any other means the user typed on. */
+    var offerText = ""
+        private set
+
     fun clear(): Feel {
+        snapshot().takeIf { it.text.isNotEmpty() || it.previous != null || it.error != null }?.let {
+            cleared = it
+            offer = Offer.UNDO
+        }
+        wipe()
+        offerText = ""
+        return Feel.DONE
+    }
+
+    /** Puts back what the last clear took away, or clears it again. */
+    fun undoOrRedo(): Feel {
+        val screen = cleared ?: return Feel.REJECT
+        when (offer) {
+            Offer.UNDO -> { restore(screen); offer = Offer.REDO }
+            Offer.REDO -> { wipe(); offer = Offer.UNDO }
+            null -> return Feel.REJECT
+        }
+        offerText = text.text.toString()
+        return Feel.TICK
+    }
+
+    /** The offer goes when its time is up or the user types on. */
+    fun dropOffer() {
+        offer = null
+    }
+
+    private fun snapshot() = Screen(text.text.toString(), text.selection, evaluated, previous, exactForm, error, live, extra)
+
+    private fun restore(s: Screen) {
+        text.edit { replace(0, length, s.text); selection = s.selection }
+        evaluated = s.evaluated
+        previous = s.previous
+        exactForm = s.exactForm
+        error = s.error
+        live = s.live
+        extra = s.extra
+    }
+
+    private fun wipe() {
         text.setTextAndPlaceCursorAtEnd("")
         evaluated = false
         previous = null
@@ -152,7 +201,6 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         exactForm = null
         live = null
         extra = 0
-        return Feel.DONE
     }
 
     fun toggleDegrees() {
@@ -406,3 +454,17 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         const val MAX_EXTRA = 3_000
     }
 }
+
+enum class Offer { UNDO, REDO }
+
+/** The calculator's screen as it was, to put back. */
+private class Screen(
+    val text: String,
+    val selection: androidx.compose.ui.text.TextRange,
+    val evaluated: Boolean,
+    val previous: String?,
+    val exactForm: String?,
+    val error: CalcError?,
+    val live: String?,
+    val extra: Int
+)
