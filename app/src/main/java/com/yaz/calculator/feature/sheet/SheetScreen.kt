@@ -84,6 +84,13 @@ import com.yaz.calculator.engine.Format
 import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.engine.Outcome
 import com.yaz.calculator.engine.SheetEval
+import android.icu.text.MeasureFormat
+import android.icu.util.MeasureUnit
+import com.yaz.calculator.engine.Moment
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.temporal.ChronoUnit
+import android.icu.util.Measure as IcuMeasure
 import com.yaz.calculator.data.rates.Rates
 import com.yaz.calculator.engine.Measure
 import com.yaz.calculator.engine.Money
@@ -117,7 +124,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /** A line's result as shown: its digits in the app's form, what it counts, and whether it is a total. */
-private data class Shown(val text: String, val measure: Measure?, val total: Boolean)
+private data class Shown(val text: String, val measure: Measure?, val total: Boolean, val ready: Boolean = false)
 
 /**
  * A sheet: lines typed freely on the left, each line's result on the right,
@@ -154,7 +161,9 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                 val values = eval.evaluate(text, settings.current.degrees)
                 if (eval.needsRates) rates.refreshIfOld()
                 Outcome.Value(UnifiedReal.ZERO, Written("", true, false)).also {
-                    results = values.map { v -> v?.let { Shown(write(it.value, it.measure), it.measure, it.total) } }
+                    results = values.map { v ->
+                        v?.let { it.moment?.let { m -> Shown(written(m), null, false, ready = true) } ?: Shown(write(it.value, it.measure), it.measure, it.total) }
+                    }
                 }
             }
             if (outcome is Outcome.Failed) results = emptyList()
@@ -319,8 +328,35 @@ private fun write(value: UnifiedReal, measure: Measure?): String {
     return w.text + if (w.more) "…" else ""
 }
 
+/** A day, a time or a duration as the phone writes them: Fri 8 Jan 2027, 17:15, 76 days, 8 hr 30 min. */
+private fun written(moment: Moment, locale: Locale = Locale.getDefault()): String = when (moment) {
+    is Moment.Day -> {
+        // The year only when it is not this one.
+        val skeleton = if (moment.date.year == java.time.LocalDate.now().year) "EEEMMMd" else "EEEMMMdy"
+        val millis = moment.date.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        android.icu.text.DateFormat.getInstanceForSkeleton(skeleton, locale).format(java.util.Date(millis))
+    }
+    is Moment.Clock -> DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT).withLocale(locale).format(moment.time)
+    is Moment.Count -> {
+        val unit = when (moment.unit) {
+            ChronoUnit.WEEKS -> MeasureUnit.WEEK
+            ChronoUnit.MONTHS -> MeasureUnit.MONTH
+            ChronoUnit.YEARS -> MeasureUnit.YEAR
+            else -> MeasureUnit.DAY
+        }
+        MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.WIDE).format(IcuMeasure(moment.amount, unit))
+    }
+    is Moment.Span -> {
+        val h = moment.duration.toHours()
+        val m = moment.duration.toMinutesPart()
+        val parts = listOfNotNull(IcuMeasure(h, MeasureUnit.HOUR).takeIf { h > 0 }, IcuMeasure(m, MeasureUnit.MINUTE).takeIf { m > 0 || h == 0L })
+        MeasureFormat.getInstance(locale, MeasureFormat.FormatWidth.SHORT).formatMeasures(*parts.toTypedArray())
+    }
+}
+
 /** A result as the user reads it: their digits, then its unit, or its currency where their country writes it. */
 private fun shownText(shown: Shown, style: NumberStyle, locale: Locale = Locale.getDefault()): String {
+    if (shown.ready) return shown.text
     val number = style.show(shown.text)
     return when (val m = shown.measure) {
         null -> number

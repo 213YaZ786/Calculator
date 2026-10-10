@@ -1,7 +1,7 @@
 package com.yaz.calculator.engine
 
 /** A line's value in a sheet, what it counts (a unit, a currency) and whether it is a total of the lines above it. */
-data class LineValue(val value: UnifiedReal, val total: Boolean, val measure: Measure? = null)
+data class LineValue(val value: UnifiedReal, val total: Boolean, val measure: Measure? = null, val moment: Moment? = null)
 
 /**
  * A sheet: lines of words and numbers, each worked out on its own, as in a
@@ -10,7 +10,11 @@ data class LineValue(val value: UnifiedReal, val total: Boolean, val measure: Me
  * lines since the last empty line or # heading; "ans" is the line above.
  * Units and currencies go along (UnitCalc): "12 km + 300 m in mi", "rent × 12".
  */
-class SheetEval(private val style: NumberStyle, rates: Map<String, String>? = null) {
+class SheetEval(
+    private val style: NumberStyle,
+    rates: Map<String, String>? = null,
+    private val dates: DateCalc = DateCalc()
+) {
 
     private val units = UnitCalc(rates)
 
@@ -48,6 +52,11 @@ class SheetEval(private val style: NumberStyle, rates: Map<String, String>? = nu
             } ?: LABEL.matchEntire(body)?.let { m ->
                 val label = m.groupValues[1].trim()
                 body = if (label.lowercase() in TOTAL && m.groupValues[2].isBlank()) label else m.groupValues[2].trim()
+            }
+            // Dates and the clock: "today + 90 days", "14:30 + 2h45".
+            dates.evaluate(body)?.let { moment ->
+                out += LineValue(UnifiedReal.ZERO, total = false, moment = moment)
+                continue
             }
             val word = body.lowercase()
             val value: Quantity? = when {

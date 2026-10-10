@@ -90,4 +90,30 @@ class SheetEvalTest {
         assertEquals(listOf("320 EUR", "800 EUR", "1120 EUR"), measured("Food: 320 €\nRent: 800 €\nTotal"))
         assertEquals(listOf("12 "), measured("Lunch 12 in Paris"))
     }
+
+    private fun moments(text: String, locale: Locale = Locale.UK) =
+        SheetEval(NumberStyle.of(locale, false), dates = DateCalc(locale, java.time.LocalDate.of(2026, 10, 10), java.time.LocalTime.of(9, 0)))
+            .evaluate(text, true).map { it?.moment }
+
+    @Test
+    fun datesAndTheClock() {
+        val day = { y: Int, m: Int, d: Int -> Moment.Day(java.time.LocalDate.of(y, m, d)) }
+        assertEquals(listOf(day(2027, 1, 8)), moments("today + 90 days"))
+        assertEquals(listOf(Moment.Count(76, java.time.temporal.ChronoUnit.DAYS)), moments("days until 25/12"))
+        assertEquals(listOf(Moment.Count(156, java.time.temporal.ChronoUnit.DAYS)), moments("days until 15/03"))
+        assertEquals(listOf(Moment.Count(76, java.time.temporal.ChronoUnit.DAYS)), moments("days until 25/12", Locale.US))
+        assertEquals(listOf(day(2026, 4, 5)), moments("15 March + 3 weeks"))
+        assertEquals(listOf(Moment.Clock(java.time.LocalTime.of(17, 15))), moments("14:30 + 2h45"))
+        assertEquals(listOf(Moment.Span(java.time.Duration.ofMinutes(510))), moments("17:30 - 9:00"))
+        assertEquals(listOf(Moment.Count(26, java.time.temporal.ChronoUnit.DAYS)), moments("10/01/2027 - 5/02/2027"))
+        assertEquals(listOf(day(2026, 10, 25)), moments("aujourd'hui + 15 jours", Locale.FRANCE))
+        assertEquals(listOf(Moment.Clock(java.time.LocalTime.of(16, 15))), moments("14h30 + 1h45", Locale.FRANCE))
+        assertEquals(listOf(day(2027, 3, 15)), moments("March 15, 2027", Locale.US))
+    }
+
+    @Test
+    fun aNumericDateAloneStaysADivision() {
+        assertEquals(listOf("5"), lines("15/3"))
+        assertEquals(listOf("7"), lines("15/3 + 2"))
+    }
 }
