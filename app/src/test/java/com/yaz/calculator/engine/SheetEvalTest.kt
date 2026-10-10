@@ -49,4 +49,45 @@ class SheetEvalTest {
         assertNull(out[1])
         assertTrue(out.size == 2)
     }
+
+    private fun measured(text: String, rates: Map<String, String>? = null) =
+        SheetEval(NumberStyle.of(Locale.US, false), rates).evaluate(text, true).map { v ->
+            v?.let {
+                val unit = when (val m = it.measure) { is Physical -> m.unit.symbol; is Money -> m.code; null -> "" }
+                Format.write(it.value, 12).text + " " + unit
+            }
+        }
+
+    @Test
+    fun unitsAsSoulverReadsThem() {
+        assertEquals(listOf("2 km"), measured("1km + 1000m"))
+        assertEquals(listOf("320 km"), measured("300 + 20 km"))
+        assertEquals(listOf("7.6428656645 mi"), measured("12 km + 300 m in mi"))
+        assertEquals(listOf("12.7 cm"), measured("5 in in cm"))
+        assertEquals(listOf("37.777777777 °C"), measured("100 °F in °C"))
+        assertEquals(listOf("3 mi"), measured("3 miles"))
+        assertEquals(listOf("1.5 h"), measured("90 minutes to hours"))
+    }
+
+    @Test
+    fun unitsThatDoNotGoTogetherHaveNoValue() {
+        assertEquals(listOf(null), measured("3 kg × 3 L"))
+        assertEquals(listOf(null), measured("2 km × 3 km"))
+        assertEquals(listOf(null), measured("2 km + 3 kg"))
+    }
+
+    @Test
+    fun currencies() {
+        assertEquals(listOf("50 USD"), measured("$20 + 30"))
+        assertEquals(listOf("6750 DZD"), measured("45 € in DZD", mapOf("DZD" to "150")))
+        assertEquals(listOf(null), measured("$200 + €200"))
+        assertEquals(listOf("381.81818181 EUR"), measured("$200 + €200", mapOf("USD" to "1.1")))
+    }
+
+    @Test
+    fun measuredNamesAndTotals() {
+        assertEquals(listOf("800 EUR", "9600 EUR"), measured("rent = 800 €\nrent × 12"))
+        assertEquals(listOf("320 EUR", "800 EUR", "1120 EUR"), measured("Food: 320 €\nRent: 800 €\nTotal"))
+        assertEquals(listOf("12 "), measured("Lunch 12 in Paris"))
+    }
 }

@@ -84,6 +84,17 @@ import com.yaz.calculator.engine.Format
 import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.engine.Outcome
 import com.yaz.calculator.engine.SheetEval
+import com.yaz.calculator.data.rates.Rates
+import com.yaz.calculator.engine.Measure
+import com.yaz.calculator.engine.Money
+import com.yaz.calculator.engine.Physical
+import java.text.DecimalFormat
+import java.text.NumberFormat
+import java.util.Currency
+import java.util.Locale
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.onEach
 import com.yaz.calculator.engine.UnifiedReal
 import com.yaz.calculator.engine.Written
 import com.yaz.calculator.engine.compute
@@ -105,8 +116,8 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
-/** A line's result as shown: its text, and whether it is a total. */
-private data class Shown(val text: String, val total: Boolean)
+/** A line's result as shown: its digits in the app's form, what it counts, and whether it is a total. */
+private data class Shown(val text: String, val measure: Measure?, val total: Boolean)
 
 /**
  * A sheet: lines typed freely on the left, each line's result on the right,
@@ -118,6 +129,7 @@ private data class Shown(val text: String, val total: Boolean)
 fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     val store: SheetStore = koinInject()
     val settings: SettingsStore = koinInject()
+    val rates: Rates = koinInject()
     val sheets by store.sheets.collectAsState()
     val sheet = sheets.firstOrNull { it.id == id }
     val state = remember(id) { TextFieldState(sheet?.text.orEmpty()) }
@@ -134,12 +146,15 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     val colors = MaterialTheme.colorScheme
 
     LaunchedEffect(id) {
-        snapshotFlow { state.text.toString() }.debounce(150).collect { text ->
-            store.write(id, text)
+        val typed = snapshotFlow { state.text.toString() }.debounce(150).onEach { store.write(id, it) }
+        // Worked out again when rates arrive for a line converting currencies.
+        combine(typed, rates.table) { text, table -> text to table }.collectLatest { (text, table) ->
             val outcome = compute(SHEET_MS) {
-                val values = SheetEval(style).evaluate(text, settings.current.degrees)
+                val eval = SheetEval(style, table?.rates)
+                val values = eval.evaluate(text, settings.current.degrees)
+                if (eval.needsRates) rates.refreshIfOld()
                 Outcome.Value(UnifiedReal.ZERO, Written("", true, false)).also {
-                    results = values.map { v -> v?.let { Shown(write(it.value), it.total) } }
+                    results = values.map { v -> v?.let { Shown(write(it.value, it.measure), it.measure, it.total) } }
                 }
             }
             if (outcome is Outcome.Failed) results = emptyList()
@@ -211,7 +226,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                         // Level with its line: the result's baseline on the line's own.
                                         val baseline = l.getLineBaseline(l.getLineForOffset(start.coerceAtMost(l.layoutInput.text.length)))
                                         Text(
-                                            style.show(shown.text),
+                                            shownText(shown, style),
                                             style = LINE.copy(textAlign = TextAlign.End, fontWeight = if (shown.total) FontWeight.Bold else FontWeight.Medium),
                                             color = colors.primary,
                                             maxLines = 1,
@@ -228,7 +243,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .clickable(onClickLabel = "Copy") {
                                                     haptics.done()
-                                                    val text = style.show(shown.text.removeSuffix("…"))
+                                                    val text = shownText(shown.copy(text = shown.text.removeSuffix("…")), style)
                                                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
                                                 }
                                         )
@@ -297,16 +312,36 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     }
 }
 
-private fun write(value: UnifiedReal): String {
-    val w = Format.write(value, 14)
+private fun write(value: UnifiedReal, measure: Measure?): String {
+    if (measure is Money) Format.money(value, measure.code, 18)?.let { return it.text }
+    // The digits leave room for the unit in the column.
+    val w = Format.write(value, if (measure is Physical) maxOf(6, 11 - measure.unit.symbol.length) else 13)
     return w.text + if (w.more) "…" else ""
+}
+
+/** A result as the user reads it: their digits, then its unit, or its currency where their country writes it. */
+private fun shownText(shown: Shown, style: NumberStyle, locale: Locale = Locale.getDefault()): String {
+    val number = style.show(shown.text)
+    return when (val m = shown.measure) {
+        null -> number
+        is Physical -> "$number ${m.unit.symbol}"
+        is Money -> {
+            val sign = runCatching { Currency.getInstance(m.code).getSymbol(locale) }.getOrDefault(m.code)
+            val before = (NumberFormat.getCurrencyInstance(locale) as? DecimalFormat)?.toPattern()?.startsWith('¤') == true
+            when {
+                before && sign.none { it.isLetter() } -> "$sign$number"
+                before -> "$sign $number"
+                else -> "$number $sign"
+            }
+        }
+    }
 }
 
 /** The sheet as text, each result after its line. */
 private fun shareText(text: String, results: List<Shown?>, style: NumberStyle): String =
     text.split('\n').mapIndexed { i, line ->
         val r = results.getOrNull(i)
-        if (r != null && line.isNotBlank()) "$line  →  ${style.show(r.text.removeSuffix("…"))}" else line
+        if (r != null && line.isNotBlank()) "$line  →  ${shownText(r.copy(text = r.text.removeSuffix("…")), style)}" else line
     }.joinToString("\n")
 
 private val LINE = TextStyle(fontSize = 18.sp, lineHeight = 30.sp)

@@ -2,6 +2,7 @@ package com.yaz.calculator.engine
 
 import com.hp.creals.Msd
 import java.text.DecimalFormatSymbols
+import java.util.Currency
 import java.util.Locale
 import kotlin.math.floor
 import kotlin.math.log10
@@ -20,6 +21,15 @@ data class Written(val text: String, val exact: Boolean, val more: Boolean)
  * long or too small for its room takes a power of ten.
  */
 object Format {
+    /** An amount of money as it is written: rounded to the cents its currency uses. */
+    fun money(value: UnifiedReal, code: String, room: Int): Written? {
+        val digits = runCatching { Currency.getInstance(code).defaultFractionDigits }.getOrDefault(2).let { if (it < 0) 4 else it }
+        val half = UnifiedReal(5).divide(UnifiedReal.TEN.pow(UnifiedReal((digits + 1).toLong())))
+        val rounded = if (value.signum(-200) < 0) value.subtract(half) else value.add(half)
+        val text = rounded.toStringTruncated(digits).let { if (digits == 0) it.trimEnd('.') else it }.replace('-', Sym.MINUS)
+        return if (text.length <= room) Written(text, exact = true, more = false) else null
+    }
+
 
     /** How far below one a value is still told from zero: about a thousand decimal places. */
     private const val ZERO_BITS = 3400

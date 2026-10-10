@@ -63,6 +63,9 @@ class Calc(
     private val variable: (String) -> UnifiedReal? = { null }
 ) {
 
+    /** The value a name stands for, as the caller defines it. */
+    fun variableOf(name: String): UnifiedReal? = variable(name)
+
     /** The exact value of [text], or a CalcException. Slow cases are cut by the caller's thread. */
     fun evaluate(text: CharSequence, degrees: Boolean): UnifiedReal {
         val tokens = tokens(text)

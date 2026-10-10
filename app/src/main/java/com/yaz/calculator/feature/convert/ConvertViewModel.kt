@@ -177,7 +177,7 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
                     val b = Units.find(cat, t) ?: throw IllegalStateException()
                     b.fromBase(a.toBase(amount))
                 }
-                val money = if (cat == Category.CURRENCY) money(result, t, width) else null
+                val money = if (cat == Category.CURRENCY) Format.money(result, t, width) else null
                 Outcome.Value(result, money ?: Format.write(result, width))
             }
             output = (outcome as? Outcome.Value)?.written?.let { it.text + if (it.more) "…" else "" }
@@ -187,13 +187,5 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
     private companion object {
         const val LIVE_MS = 2_000L
 
-        /** An amount of money as it is written: rounded to the cents its currency uses. */
-        fun money(value: UnifiedReal, code: String, room: Int): Written? {
-            val digits = runCatching { Currency.getInstance(code).defaultFractionDigits }.getOrDefault(2).let { if (it < 0) 4 else it }
-            val half = UnifiedReal(5).divide(UnifiedReal.TEN.pow(UnifiedReal((digits + 1).toLong())))
-            val rounded = if (value.signum(-200) < 0) value.subtract(half) else value.add(half)
-            val text = rounded.toStringTruncated(digits).let { if (digits == 0) it.trimEnd('.') else it }.replace('-', Sym.MINUS)
-            return if (text.length <= room) Written(text, exact = true, more = false) else null
-        }
     }
 }
