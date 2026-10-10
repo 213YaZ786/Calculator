@@ -93,8 +93,9 @@ fun CalcScreen(
         if (vm.reveals == 0) return@LaunchedEffect
         fade.snapTo(1f)
         reveal.snapTo(0f)
-        reveal.animateTo(1f, tween(REVEAL_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        // Cleared as the reveal starts (AOSP's onAnimationStart): what is typed meanwhile stays.
         vm.clear()
+        reveal.animateTo(1f, tween(REVEAL_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
         fade.animateTo(0f, tween(FADE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
         reveal.snapTo(0f)
     }
