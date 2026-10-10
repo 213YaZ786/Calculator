@@ -134,30 +134,6 @@ val maths: List<Program> = listOf(
         out
     },
     Method(
-        "binomial", Subject.MATHS, w("Loi binomiale", "Binomial distribution"), "P(X = k) = C(n,k)·pᵏ·(1 − p)ⁿ⁻ᵏ",
-        listOf(f("n", "Nombre d'épreuves", "Trials", whole = true), f("p", "Probabilité de succès", "Probability of success"), f("k", "k", "k", whole = true))
-    ) { v ->
-        val trials = v["n"]!!.toInt(); val p = v["p"]!!; val k = v["k"]!!.toInt()
-        require(trials in 0..100_000 && p in 0.0..1.0)
-        val law = BinomialDistribution(trials, p)
-        listOf(
-            result("P(X = k) = ${n(law.probability(k))}"),
-            result("P(X ≤ k) = ${n(law.cumulativeProbability(k))}"),
-            result("P(X ≥ k) = ${n(1 - law.cumulativeProbability(k - 1))}"),
-            step("E(X) = np = ${n(trials * p)}   V(X) = np(1 − p) = ${n(trials * p * (1 - p))}   σ = ${n(sqrt(trials * p * (1 - p)))}")
-        )
-    },
-    Method(
-        "normal", Subject.MATHS, w("Loi normale", "Normal distribution"), "P(a ≤ X ≤ b), X ~ N(μ, σ²)",
-        listOf(f("μ", "Espérance", "Mean"), f("σ", "Écart type", "Standard deviation"), f("a", "Borne basse", "Lower bound"), f("b", "Borne haute", "Upper bound"))
-    ) { v ->
-        val law = NormalDistribution(v["μ"]!!, v["σ"]!!)
-        listOf(
-            result("P(a ≤ X ≤ b) = ${n(law.cumulativeProbability(v["b"]!!) - law.cumulativeProbability(v["a"]!!))}"),
-            step("P(X ≤ a) = ${n(law.cumulativeProbability(v["a"]!!))}   P(X ≥ b) = ${n(1 - law.cumulativeProbability(v["b"]!!))}")
-        )
-    },
-    Method(
         "confidence", Subject.MATHS, w("Intervalle de confiance (proportion)", "Confidence interval (proportion)"), "f ± 1,96·√(f(1 − f) / n)",
         listOf(f("f", "Fréquence observée", "Observed frequency"), f("n", "Taille de l'échantillon", "Sample size", whole = true))
     ) { v ->
@@ -422,4 +398,4 @@ private fun clean(x: Double): Double {
 }
 
 /** Every program, by subject. */
-val programs: List<Program> by lazy { maths + sequences + symbolic + formal + analysis + integrals + integralsMore + statistics + geometry + vectors + expert + algebra + physics + chemistry }
+val programs: List<Program> by lazy { maths + sequences + symbolic + formal + analysis + integrals + integralsMore + laws + statistics + geometry + vectors + expert + algebra + physics + chemistry }

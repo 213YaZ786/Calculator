@@ -47,6 +47,8 @@ class Rich(
     override val title: Words,
     override val formula: String,
     override val fields: List<Field>,
+    override val family: String? = null,
+    override val short: Words? = null,
     private val work: (Inputs) -> Outcome
 ) : Program {
     override fun run(values: Map<String, Double?>): Outcome = run(values, emptyMap(), true)
@@ -78,8 +80,8 @@ class Rich(
 
 internal fun title(fr: String, en: String) = Words(fr, en)
 internal fun say(fr: String, en: String) = Words(fr, en).get()
-internal fun num(symbol: String, fr: String, en: String, unit: String = "", whole: Boolean = false, optional: Boolean = false) =
-    Field(symbol, Words(fr, en), unit, whole, FieldKind.NUMBER, optional)
+internal fun num(symbol: String, fr: String, en: String, unit: String = "", whole: Boolean = false, optional: Boolean = false, slider: ClosedFloatingPointRange<Double>? = null, step: Double = 0.0) =
+    Field(symbol, Words(fr, en), unit, whole, FieldKind.NUMBER, optional, slider, step)
 internal fun fn(symbol: String, fr: String, en: String) = Field(symbol, Words(fr, en), kind = FieldKind.FUNCTION)
 internal fun list(symbol: String, fr: String, en: String, optional: Boolean = false) = Field(symbol, Words(fr, en), kind = FieldKind.LIST, optional = optional)
 internal fun show(v: Double) = Solve.show(v)

@@ -64,19 +64,35 @@ import kotlinx.coroutines.launch
  * one shape after another.
  */
 @Composable
-fun FigureView(figure: Figure, style: NumberStyle, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 300.dp) {
+fun FigureView(
+    figure: Figure, style: NumberStyle, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 300.dp,
+    /** A slider's run: drawn at once, the window gliding to it. */
+    instant: Boolean = false,
+    /** What keeps the window between instant runs: the program. */
+    key: Any? = null
+) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val home = remember(figure) { figure.frame() }
-    var box by remember(figure) { mutableStateOf(home) }
-    val drawn = remember(figure) { Animatable(0f) }
+    var box by remember(key) { mutableStateOf(home) }
+    LaunchedEffect(figure) {
+        if (!instant) { box = home; return@LaunchedEffect }
+        // A slider's run: the window glides to the new figure.
+        val from = box
+        val glide = Animatable(0f)
+        glide.animateTo(1f, tween(220, easing = FastOutSlowInEasing)) {
+            val t = value.toDouble()
+            box = Box2(from.xMin + (home.xMin - from.xMin) * t, from.xMax + (home.xMax - from.xMax) * t, from.yMin + (home.yMin - from.yMin) * t, from.yMax + (home.yMax - from.yMax) * t)
+        }
+    }
+    val drawn = remember(figure) { Animatable(if (instant) 1f else 0f) }
     val count = figure.shapes.size.coerceAtLeast(1)
     val length = if (figure.staged) (550 * count).coerceAtMost(6000) else 1100
     suspend fun play() {
         drawn.snapTo(0f)
         drawn.animateTo(1f, tween(length, easing = if (figure.staged) LinearEasing else FastOutSlowInEasing))
     }
-    LaunchedEffect(figure) { play() }
+    LaunchedEffect(figure) { if (!instant) play() }
     val colors = MaterialTheme.colorScheme
     val palette = curveColors(colors.primary)
     val ink = colors.onSurface
@@ -91,7 +107,7 @@ fun FigureView(figure: Figure, style: NumberStyle, modifier: Modifier = Modifier
                 Modifier.fillMaxSize()
                     .semantics { contentDescription = "Figure" }
                     .pointerInput(figure) {
-                        detectTransformGestures { centroid, pan, zoom, _ ->
+                        detectTwoFingers { centroid, pan, zoom ->
                             val w = shown(box, figure.square, size.width.toFloat(), size.height.toFloat())
                             val k = 1.0 / zoom.toDouble().coerceIn(0.2, 5.0)
                             val cx = w.xMin + centroid.x / size.width * (w.xMax - w.xMin)

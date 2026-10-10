@@ -104,56 +104,6 @@ val statistics: List<Program> = listOf(
         Outcome(out)
     },
     Rich(
-        "poisson", Subject.STATS, title("Loi de Poisson", "Poisson distribution"), "P(X = k) = e⁻λ·λᵏ / k!",
-        listOf(num("λ", "Paramètre λ", "Parameter λ"), num("k", "k", "k", whole = true))
-    ) { v ->
-        val lambda = v["λ"]; val k = v.int("k")
-        require(lambda > 0 && k >= 0)
-        val law = PoissonDistribution(lambda)
-        lines(
-            res("P(X = k) = ${show(law.probability(k))}"),
-            res("P(X ≤ k) = ${show(law.cumulativeProbability(k))}   P(X ≥ k) = ${show(1 - law.cumulativeProbability(k - 1))}"),
-            stp("E(X) = V(X) = λ = ${show(lambda)}")
-        )
-    },
-    Rich(
-        "geometric-law", Subject.STATS, title("Loi géométrique", "Geometric distribution"), "P(X = k) = (1 − p)ᵏ⁻¹p",
-        listOf(num("p", "Probabilité de succès", "Probability of success"), num("k", "Rang du premier succès", "Trial of the first success", whole = true))
-    ) { v ->
-        val p = v["p"]; val k = v.int("k")
-        require(p > 0 && p <= 1 && k >= 1)
-        lines(
-            res("P(X = k) = ${show((1 - p).pow(k - 1) * p)}"),
-            res("P(X ≤ k) = 1 − (1 − p)ᵏ = ${show(1 - (1 - p).pow(k))}   P(X > k) = ${show((1 - p).pow(k))}"),
-            stp("E(X) = 1/p = ${show(1 / p)}   V(X) = (1 − p)/p² = ${show((1 - p) / (p * p))}"),
-            stp(say("Sans mémoire : P(X > m + k | X > m) = P(X > k)", "Memoryless: P(X > m + k | X > m) = P(X > k)"))
-        )
-    },
-    Rich(
-        "exponential", Subject.STATS, title("Loi exponentielle", "Exponential distribution"), "P(X ≤ t) = 1 − e⁻λᵗ",
-        listOf(num("λ", "Paramètre λ", "Rate λ"), num("a", "a", "a"), num("b", "b", "b"))
-    ) { v ->
-        val l = v["λ"]; val a = v["a"]; val b = v["b"]
-        require(l > 0 && a >= 0 && b >= a)
-        lines(
-            res("P(a ≤ X ≤ b) = e⁻λᵃ − e⁻λᵇ = ${show(exp(-l * a) - exp(-l * b))}"),
-            stp("P(X ≤ a) = ${show(1 - exp(-l * a))}   P(X ≥ b) = ${show(exp(-l * b))}"),
-            stp(say("E(X) = 1/λ = ${show(1 / l)}   médiane ln 2/λ = ${show(ln(2.0) / l)}", "E(X) = 1/λ = ${show(1 / l)}   median ln 2/λ = ${show(ln(2.0) / l)}"))
-        )
-    },
-    Rich(
-        "uniform-law", Subject.STATS, title("Loi uniforme continue", "Continuous uniform distribution"), "X ~ U([a ; b])",
-        listOf(num("a", "a", "a"), num("b", "b", "b"), num("c", "c", "c"), num("d", "d", "d"))
-    ) { v ->
-        val a = v["a"]; val b = v["b"]; val c = v["c"]; val d = v["d"]
-        require(b > a && d >= c)
-        val inter = (minOf(b, d) - maxOf(a, c)).coerceAtLeast(0.0)
-        lines(
-            res("P(c ≤ X ≤ d) = ${show(inter / (b - a))}"),
-            stp("E(X) = (a + b)/2 = ${show((a + b) / 2)}   V(X) = (b − a)²/12 = ${show((b - a).pow(2) / 12)}")
-        )
-    },
-    Rich(
         "t-interval", Subject.STATS, title("Intervalle de confiance d'une moyenne", "Confidence interval for a mean"), "x̄ ± t·s/√n",
         listOf(num("x̄", "Moyenne de l'échantillon", "Sample mean"), num("s", "Écart type de l'échantillon", "Sample standard deviation"), num("n", "Taille", "Size", whole = true), num("c", "Niveau (0,95)", "Level (0.95)"))
     ) { v ->

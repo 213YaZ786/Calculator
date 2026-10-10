@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -156,7 +158,7 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
         if (target > scroll.value) scroll.animateScrollTo(target)
     }
     LaunchedEffect(adv.outcome, adv.showingScene) {
-        if (!adv.showingScene) return@LaunchedEffect
+        if (!adv.showingScene || adv.instant) return@LaunchedEffect
         // Once the keys have folded and the figure is laid out.
         kotlinx.coroutines.delay(350)
         scroll.animateScrollTo(scroll.maxValue)
@@ -170,7 +172,31 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
             Spacer(Modifier.width(4.dp))
             Text(p.title.get(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         }
-        Text(p.formula, style = MaterialTheme.typography.titleLarge, color = colors.primary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
+        // The other laws of the family, one tap away, a and b kept (GeoGebra's probability calculator).
+        p.family?.let { family ->
+            val siblings = remember(family) { programs.filter { it.family == family } }
+            androidx.compose.foundation.layout.FlowRow(
+                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().padding(top = 6.dp)
+            ) {
+                siblings.forEach { s ->
+                    val chosen = s.id == p.id
+                    ZoneSurface(
+                        shape = RoundedCornerShape(50),
+                        accent = chosen,
+                        onClick = if (chosen) null else ({ haptics.tick(); adv.switchTo(s) }),
+                        modifier = Modifier.height(40.dp).sink(0.94f)
+                    ) {
+                        Box(Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+                            Text((s.short ?: s.title).get(), style = MaterialTheme.typography.labelLarge, fontWeight = if (chosen) FontWeight.Bold else FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+        // A long formula a size down, so it holds on its line.
+        Text(p.formula, style = if (p.formula.length > 26) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleLarge, color = colors.primary, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp))
         val output = remember(style) { OutputTransformation { showIn(this, style) { "" } } }
         p.fields.forEachIndexed { i, field ->
             val chosen = adv.programField == i
@@ -234,7 +260,22 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
             }
             o.figure?.let { figure ->
                 Spacer(Modifier.height(10.dp))
-                FigureView(figure, style, height = figureHeight())
+                FigureView(figure, style, height = figureHeight(), instant = adv.instant, key = p.id)
+            }
+            // The parameters on sliders, under the figure they move.
+            if (o.figure != null || o.scene != null) p.fields.forEachIndexed { i, field ->
+                val range = field.slider ?: return@forEachIndexed
+                val now = adv.programFields[i].text.toString().replace('−', '-').toDoubleOrNull() ?: return@forEachIndexed
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
+                    Text("${field.symbol} = ${style.show(adv.programFields[i].text.toString())}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.widthIn(min = 92.dp))
+                    androidx.compose.material3.Slider(
+                        value = now.toFloat().coerceIn(range.start.toFloat(), range.endInclusive.toFloat()),
+                        onValueChange = { adv.slide(i, it.toDouble()) },
+                        valueRange = range.start.toFloat()..range.endInclusive.toFloat(),
+                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Gold, activeTrackColor = Gold, inactiveTrackColor = Gold.copy(alpha = 0.25f)),
+                        modifier = Modifier.weight(1f).semantics { contentDescription = field.symbol }
+                    )
+                }
             }
             if (o.scene != null || o.figure != null) Spacer(Modifier.height(16.dp))
         }

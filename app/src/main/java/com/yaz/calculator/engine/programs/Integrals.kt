@@ -331,7 +331,7 @@ val integrals: List<Program> = listOf(
     },
     Rich(
         "brouncker", Subject.ANALYSIS, title("ln 2 par l'algorithme de Brouncker", "ln 2 by Brouncker's algorithm"), "ln 2 = 1/(1·2) + 1/(3·4) + 1/(5·6) + …",
-        listOf(num("k", "Étapes (≤ 20)", "Steps (≤ 20)", whole = true))
+        listOf(num("k", "Étapes (≤ 20)", "Steps (≤ 20)", whole = true, slider = 0.0..8.0, step = 1.0))
     ) { v ->
         val k = v.int("k")
         require(k in 0..20)
@@ -496,7 +496,7 @@ val integrals: List<Program> = listOf(
 val integralsMore: List<Program> = listOf(
     Rich(
         "harmonic-bounds", Subject.ANALYSIS, title("Somme harmonique et intégrales", "Harmonic sum and integrals"), "ln(n + 1) ≤ Hₙ ≤ 1 + ln n",
-        listOf(num("n", "n", "n", whole = true))
+        listOf(num("n", "n", "n", whole = true, slider = 1.0..40.0, step = 1.0))
     ) { v ->
         val n = v.long("n")
         require(n in 1..100_000_000)
@@ -554,7 +554,7 @@ val integralsMore: List<Program> = listOf(
     },
     Rich(
         "archimedes-parabola", Subject.ANALYSIS, title("Quadrature de la parabole (Archimède)", "Quadrature of the parabola (Archimedes)"), "A = 4/3 × triangle",
-        listOf(num("p", "p, parabole y = px²", "p, parabola y = px²"), num("u", "Abscisse u", "Point u"), num("w", "Abscisse w", "Point w"), num("k", "Étapes (≤ 6)", "Steps (≤ 6)", whole = true))
+        listOf(num("p", "p, parabole y = px²", "p, parabola y = px²"), num("u", "Abscisse u", "Point u"), num("w", "Abscisse w", "Point w"), num("k", "Étapes (≤ 6)", "Steps (≤ 6)", whole = true, slider = 1.0..6.0, step = 1.0))
     ) { v ->
         val p = v["p"]; val u = min(v["u"], v["w"]); val w = max(v["u"], v["w"]); val k = v.int("k")
         require(p != 0.0 && w > u && k in 1..6)

@@ -317,7 +317,38 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     /** A program's figure on show: the keys fold to their gold row until a field is touched. */
     var showingScene by mutableStateOf(false)
 
-    fun runProgram(): Feel {
+    /** Another law of the same family, the values of the fields they share carried over, run at once when the first had run. */
+    fun switchTo(p: Program) {
+        val old = program ?: return open(p)
+        val kept = old.fields.mapIndexed { i, f -> f.symbol to programFields[i].text.toString() }.toMap()
+        val numbers = kept.mapNotNull { (k, t) -> runCatching { k to com.yaz.calculator.engine.Calc().evaluate(t, degrees).crValue().toDouble() }.getOrNull() }.toMap()
+        // The law's parameters carried at equal mean and variance.
+        val matched = com.yaz.calculator.engine.programs.matchMoments(old.id, numbers, p.id)
+        val ran = outcome != null
+        open(p)
+        p.fields.forEachIndexed { i, f ->
+            val text = matched[f.symbol]?.let { v -> (if (v == Math.rint(v)) Math.round(v).toString() else v.toString()).replace('-', com.yaz.calculator.engine.Sym.MINUS) }
+                ?: kept[f.symbol]?.takeIf { f.symbol == "a" || f.symbol == "b" }
+            text?.takeIf { it.isNotBlank() }?.let { programFields[i].setTextAndPlaceCursorAtEnd(it) }
+        }
+        if (ran) runProgram()
+    }
+
+    /** A slider moved: the field takes the value and the program runs again, its figure kept in place. */
+    fun slide(i: Int, value: Double) {
+        val f = program?.fields?.getOrNull(i) ?: return
+        val v = if (f.step > 0) Math.round(value / f.step) * f.step else value
+        val text = if (f.whole || v == Math.rint(v)) Math.round(v).toString() else java.math.BigDecimal(v).setScale(4, java.math.RoundingMode.HALF_EVEN).stripTrailingZeros().toPlainString()
+        if (programFields[i].text.toString() == text) return
+        programFields[i].setTextAndPlaceCursorAtEnd(text.replace('-', com.yaz.calculator.engine.Sym.MINUS))
+        runProgram(quiet = true)
+    }
+
+    /** The figure drawn at once (a slider's run) rather than coming in. */
+    var instant by mutableStateOf(false)
+        private set
+
+    fun runProgram(quiet: Boolean = false): Feel {
         val p = program ?: return Feel.REJECT
         val values = HashMap<String, Double?>()
         val texts = HashMap<String, String>()
@@ -337,7 +368,8 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
         }
         // Off the main thread (integrals, Monte-Carlo, figures), the last "=" winning; 10 s at most.
         programJob?.cancel()
-        computing = true
+        computing = !quiet
+        instant = quiet
         programJob = viewModelScope.launch {
             val o = kotlinx.coroutines.withTimeoutOrNull(10_000) {
                 kotlinx.coroutines.runInterruptible(Dispatchers.Default) { p.run(values, texts, degrees) }

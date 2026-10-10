@@ -92,11 +92,11 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier, height: androidx.comp
             Canvas(
                 Modifier.fillMaxSize()
                     .pointerInput(scene) {
-                        detectTransformGestures { _, pan, gestureZoom, _ ->
-                            scope.launch { yaw.snapTo(yaw.value - pan.x * 0.4f) }
-                            pitch = (pitch + pan.y * 0.4f).coerceIn(-85f, 85f)
-                            zoom = (zoom * gestureZoom).coerceIn(0.4f, 4f)
-                        }
+                        detectSceneTurns(
+                            onTurn = { dx -> scope.launch { yaw.snapTo(yaw.value - dx * 0.4f) } },
+                            onTilt = { dy -> pitch = (pitch + dy * 0.4f).coerceIn(-85f, 85f) },
+                            onZoom = { k -> zoom = (zoom * k).coerceIn(0.4f, 4f) }
+                        )
                     }
                     .pointerInput(scene) {
                         detectTapGestures(onDoubleTap = {

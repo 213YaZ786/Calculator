@@ -269,7 +269,7 @@ val analysis: List<Program> = listOf(
     },
     Rich(
         "integral", Subject.ANALYSIS, title("Intégrale : rectangles, trapèzes, Simpson", "Integral: rectangles, trapezoids, Simpson"), "∫ₐᵇ f(x) dx",
-        listOf(fn("f", "f(x)", "f(x)"), num("a", "a", "a"), num("b", "b", "b"), num("n", "Subdivisions", "Subintervals", whole = true))
+        listOf(fn("f", "f(x)", "f(x)"), num("a", "a", "a"), num("b", "b", "b"), num("n", "Subdivisions", "Subintervals", whole = true, slider = 2.0..60.0, step = 2.0))
     ) { v ->
         val f = v.f("f"); val a = v["a"]; val b = v["b"]; val n = v.int("n").let { if (it % 2 == 1) it + 1 else it }
         require(n in 2..100_000)
@@ -352,7 +352,7 @@ val analysis: List<Program> = listOf(
     },
     Rich(
         "taylor", Subject.ANALYSIS, title("Série de Taylor", "Taylor series"), "f(x) ≈ Σ f⁽ᵏ⁾(a)/k!·(x − a)ᵏ",
-        listOf(fn("f", "f(x)", "f(x)"), num("a", "Centre a (0 : Maclaurin)", "Centre a (0: Maclaurin)"), num("n", "Ordre (≤ 10)", "Order (≤ 10)", whole = true), num("x", "x pour comparer (facultatif)", "x to compare (optional)", optional = true))
+        listOf(fn("f", "f(x)", "f(x)"), num("a", "Centre a (0 : Maclaurin)", "Centre a (0: Maclaurin)"), num("n", "Ordre (≤ 10)", "Order (≤ 10)", whole = true, slider = 0.0..10.0, step = 1.0), num("x", "x pour comparer (facultatif)", "x to compare (optional)", optional = true))
     ) { v ->
         val f = v.f("f"); val a = v["a"]; val n = v.int("n")
         require(n in 0..10)

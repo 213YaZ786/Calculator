@@ -22,14 +22,20 @@ enum class Subject(val title: Words) {
 /** What a field holds: a number, a function of x, or numbers separated by the "," key. */
 enum class FieldKind { NUMBER, FUNCTION, LIST }
 
-/** A value the program asks for: its symbol, its name, its unit; [whole] for integers; [optional] may stay empty. */
+/**
+ * A value the program asks for: its symbol, its name, its unit; [whole] for
+ * integers; [optional] may stay empty; [slider], a range the value can be
+ * dragged in under the figure (GeoGebra's sliders), by [step].
+ */
 data class Field(
     val symbol: String,
     val name: Words,
     val unit: String = "",
     val whole: Boolean = false,
     val kind: FieldKind = FieldKind.NUMBER,
-    val optional: Boolean = false
+    val optional: Boolean = false,
+    val slider: ClosedFloatingPointRange<Double>? = null,
+    val step: Double = 0.0
 )
 
 /** A line of what a program gives back: a result to read, or a step of the working. */
@@ -46,6 +52,10 @@ interface Program {
     /** The relation or the method, shown above the fields. */
     val formula: String
     val fields: List<Field>
+    /** Programs of one family (the laws of probability) switch into each other, keeping the values of fields they share. */
+    val family: String? get() = null
+    /** The family's short name for this one, on its chip. */
+    val short: Words? get() = null
 
     /** [values] by symbol, null where empty; an Outcome, or a message saying what is missing. */
     fun run(values: Map<String, Double?>): Outcome

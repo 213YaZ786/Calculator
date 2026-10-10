@@ -350,7 +350,7 @@ val vectors: List<Program> = listOf(
     },
     Rich(
         "parabola", Subject.GEOMETRY, title("Parabole : sommet, axe, intersections", "Parabola: vertex, axis, intersections"), "y = ax² + bx + c, S(−b/2a ; f(−b/2a))",
-        listOf(num("a", "a", "a"), num("b", "b", "b"), num("c", "c", "c"), num("k", "Droite y = k (facultatif)", "Line y = k (optional)", optional = true))
+        listOf(num("a", "a", "a", slider = -5.0..5.0, step = 0.1), num("b", "b", "b", slider = -10.0..10.0, step = 0.1), num("c", "c", "c", slider = -10.0..10.0, step = 0.1), num("k", "Droite y = k (facultatif)", "Line y = k (optional)", optional = true, slider = -10.0..10.0, step = 0.1))
     ) { v ->
         val a = v["a"]; val b = v["b"]; val c = v["c"]
         require(a != 0.0)
