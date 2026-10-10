@@ -1,7 +1,15 @@
 package com.yaz.calculator.engine
 
 /** A line's value in a sheet, what it counts (a unit, a currency) and whether it is a total of the lines above it. */
-data class LineValue(val value: UnifiedReal, val total: Boolean, val measure: Measure? = null, val moment: Moment? = null)
+data class LineValue(
+    val value: UnifiedReal,
+    val total: Boolean,
+    val measure: Measure? = null,
+    val moment: Moment? = null,
+    /** "y = x² − 3": the curve to draw, and the line as written for its legend. */
+    val curve: Curve? = null,
+    val legend: String? = null
+)
 
 /**
  * A sheet: lines of words and numbers, each worked out on its own, as in a
@@ -52,6 +60,16 @@ class SheetEval(
             } ?: LABEL.matchEntire(body)?.let { m ->
                 val label = m.groupValues[1].trim()
                 body = if (label.lowercase() in TOTAL && m.groupValues[2].isBlank()) label else m.groupValues[2].trim()
+            }
+            // y = x² − 3, f(x) = 2x + 1: a curve to draw (Apple Math Notes), when x is not a name above.
+            val plotted = FUNCTION_LINE.matchEntire(line.removeSuffix("=").trim())?.groupValues?.get(1)
+                ?: body.takeIf { name?.lowercase() == "y" }
+            if (plotted != null && "x" !in variables && "x" !in measured) {
+                val curve = Curve.of(prepare(plotted), degrees) { n -> variables[n.lowercase()]?.let { runCatching { it.crValue().toDouble() }.getOrNull() } }
+                if (curve != null) {
+                    out += LineValue(UnifiedReal.ZERO, total = false, curve = curve, legend = line.removeSuffix("=").trim())
+                    continue
+                }
             }
             // The great question of life, the universe and everything (Google Search's egg).
             if (asksTheQuestion(body)) {
@@ -152,6 +170,7 @@ class SheetEval(
         private val LIFE = listOf("life", "vie", "vida", "leben", "vita", "leven")
         private val UNIVERSE = listOf("univers", "universo", "universum")
         private val EVERYTHING = listOf("everything", "reste", "tout", "todo", "rest", "alles", "tutto", "tudo")
+        private val FUNCTION_LINE = Regex("^\\p{L}\\s*\\(\\s*x\\s*\\)\\s*=\\s*(.+)$")
         private val ASSIGNMENT = Regex("^([\\p{L}_][\\p{L}\\p{N}_]*)\\s*=\\s*(.+)$")
         private val LABEL = Regex("^([^:=]*\\p{L}[^:=]*):\\s*(.*)$")
         private val WORD = Regex("[\\p{L}_][\\p{L}\\p{N}_]*")

@@ -122,4 +122,15 @@ class SheetEvalTest {
         assertEquals(listOf("42"), lines("The answer to life, the universe and everything"))
         assertEquals(listOf("42"), lines("La réponse sur la vie, l'univers et le reste", Locale.FRANCE))
     }
+
+    @Test
+    fun curves() {
+        val out = SheetEval(NumberStyle.of(Locale.US, false)).evaluate("a = 2\ny = ax² - 3\nf(x) = sin(x)\nx = 4\ny = 2x", false)
+        val y = out[1]!!.curve!!
+        assertEquals(5.0, y(2.0), 1e-9)
+        assertEquals(-3.0, y(0.0), 1e-9)
+        assertEquals(0.0, out[2]!!.curve!!(0.0), 1e-9)
+        assertNull(out[4]!!.curve)
+        assertEquals("8", Format.write(out[4]!!.value, 10).text)
+    }
 }
