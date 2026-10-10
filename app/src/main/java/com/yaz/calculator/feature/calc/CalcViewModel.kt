@@ -480,6 +480,12 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         return Feel.TICK
     }
 
+    /** One past calculation removed, by a swipe or from its long press. */
+    fun deleteEntry(entry: Entry): Feel {
+        ledger.update { d -> d.copy(entries = d.entries - entry) }
+        return Feel.DONE
+    }
+
     fun clearHistory() {
         ledger.update { it.copy(entries = emptyList()) }
     }

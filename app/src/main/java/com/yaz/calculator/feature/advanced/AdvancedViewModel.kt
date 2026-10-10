@@ -80,6 +80,10 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
 
     private var job: Job? = null
 
+    /** L1 and L2, row by row; the last row is always empty. Declared before init, which may fill it at once. */
+    var rows by mutableStateOf<List<Pair<TextFieldState, TextFieldState>>>(listOf(TextFieldState() to TextFieldState()))
+        private set
+
     init {
         viewModelScope.launch {
             store.loaded.first { it }
@@ -106,9 +110,6 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
 
     // ---------- STAT ----------
 
-    /** L1 and L2, row by row; the last row is always empty, to type a new value. */
-    var rows by mutableStateOf<List<Pair<TextFieldState, TextFieldState>>>(listOf(TextFieldState() to TextFieldState()))
-        private set
     var cellRow by mutableIntStateOf(0)
     var cellColumn by mutableIntStateOf(0)
     var twoVar by mutableStateOf(false)

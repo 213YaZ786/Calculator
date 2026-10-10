@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.Role
@@ -185,7 +186,7 @@ private fun MainScreen(nav: NavHostController, style: NumberStyle, mode: Mode, o
 
 /**
  * The switch between the three places: a pill of glass, the place chosen
- * named in a drop of the accent, the others by their icon.
+ * in a drop of the accent; icons only.
  */
 @Composable
 private fun ModeSwitch(mode: Mode, onMode: (Mode) -> Unit) {
@@ -226,13 +227,13 @@ private fun ModeSwitch(mode: Mode, onMode: (Mode) -> Unit) {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center
                     ) {
-                        Icon(m.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        Text(
-                            m.label,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                        // Icons alone, large enough to read at a glance; the name stays for TalkBack.
+                        val grow by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 500f), label = "grow")
+                        Icon(
+                            m.icon,
+                            contentDescription = null,
+                            tint = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(28.dp).graphicsLayer { scaleX = grow; scaleY = grow }
                         )
                     }
                 }

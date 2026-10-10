@@ -14,7 +14,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -34,7 +33,6 @@ import androidx.compose.foundation.layout.windowInsetsBottomHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -269,8 +267,6 @@ fun CalcScreen(
                             modifier = turned.then(bottom)
                         )
                     } else Column(turned) {
-                        // Drawn down from the display, the history comes, as on a paper roll.
-                        var pulled by remember { mutableFloatStateOf(0f) }
                         Display(
                             vm,
                             style,
@@ -279,20 +275,6 @@ fun CalcScreen(
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .onGloballyPositioned { displayRect = it.boundsInRoot() }
-                                .pointerInput(sideHistory) {
-                                    if (sideHistory) return@pointerInput
-                                    detectVerticalDragGestures(
-                                        onDragEnd = { pulled = 0f },
-                                        onDragCancel = { pulled = 0f }
-                                    ) { _, dy ->
-                                        pulled += dy
-                                        if (pulled > with(density) { 72.dp.toPx() }) {
-                                            pulled = Float.NEGATIVE_INFINITY
-                                            haptics.firm()
-                                            onHistory(true)
-                                        }
-                                    }
-                                }
                         ) { ResultActions(vm, style) }
                         Spacer(Modifier.height(8.dp))
                         if (wide) {

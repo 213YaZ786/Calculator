@@ -7,6 +7,8 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -51,9 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -93,6 +97,8 @@ import kotlinx.coroutines.awaitCancellation
 
 /** The gold of the advanced mode's rim and keys, as the user asked. */
 val Gold = Color(0xFFD4AF37)
+
+private val PAGE_ORDER = listOf(Page.CALC, Page.FUNCTIONS, Page.GRAPH, Page.TABLE, Page.STATS, Page.BASES, Page.PROGRAMS)
 
 private enum class Menu { NONE, MATH, CALC, ZOOM, WINDOW, TABLE }
 
@@ -221,7 +227,11 @@ private fun Screen(
         Column(Modifier.fillMaxSize().padding(12.dp)) {
             PageTabs(adv)
             Spacer(Modifier.height(8.dp))
-            AnimatedContent(adv.page, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "page", modifier = Modifier.weight(1f).fillMaxWidth()) { page ->
+            AnimatedContent(adv.page, transitionSpec = {
+                // The old page goes before the new one slides in from the side of its tab: never two pages over each other.
+                val forward = PAGE_ORDER.indexOf(targetState) > PAGE_ORDER.indexOf(initialState)
+                ((slideInHorizontally(tween(260, delayMillis = 90)) { if (forward) it / 8 else -it / 8 } + fadeIn(tween(220, delayMillis = 90))) togetherWith fadeOut(tween(90))).using(null)
+            }, label = "page", modifier = Modifier.weight(1f).fillMaxWidth().clipToBounds()) { page ->
                 when (page) {
                     Page.CALC -> calcDisplay(Modifier.fillMaxSize())
                     Page.FUNCTIONS -> Functions(adv, style)
@@ -297,7 +307,9 @@ private fun Functions(adv: AdvancedViewModel, style: NumberStyle) {
                         lineLimits = TextFieldLineLimits.SingleLine,
                         textStyle = TextStyle(fontSize = 22.sp, color = MaterialTheme.colorScheme.onSurface),
                         cursorBrush = SolidColor(if (chosen) Gold else Color.Transparent),
-                        modifier = Modifier.weight(1f).focusRequester(focus).semantics { contentDescription = "Y${i + 1}" }
+                        modifier = Modifier.weight(1f).focusRequester(focus)
+                            .onFocusChanged { if (it.isFocused && adv.selected != i) adv.select(i) }
+                            .semantics { contentDescription = "Y${i + 1}" }
                     )
                 }
             }
@@ -330,6 +342,16 @@ private fun GraphPage(adv: AdvancedViewModel, style: NumberStyle) {
                     Text("Y${i + 1}", style = MaterialTheme.typography.labelLarge)
                 }
             }
+            // No curve yet: the way to write one, in the row of curves.
+            if (drawn.isEmpty()) Row(
+                Modifier.clip(CircleShape).border(1.dp, Gold, CircleShape)
+                    .clickable { haptics.tick(); adv.page = Page.FUNCTIONS }.padding(horizontal = 10.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                androidx.compose.material3.Icon(AppIcons.Edit, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Write a function", style = MaterialTheme.typography.labelLarge)
+            }
             val degrees by adv.degreesFlow.collectAsState(adv.degrees)
             Text(
                 if (degrees) "DEG" else "RAD",
@@ -360,7 +382,6 @@ private fun GraphPage(adv: AdvancedViewModel, style: NumberStyle) {
                 points = if (!adv.twoVar) emptyList() else adv.data().let { (xs, ys) -> xs.indices.mapNotNull { i -> ys[i]?.let { xs[i] to it } } },
                 onTouch = { x -> feelIt(haptics, adv.touch(x)) }
             )
-            if (drawn.isEmpty()) Text("Y= is empty", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.Center))
         }
         val results = buildList {
             prompt?.let { add(it) }

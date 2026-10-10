@@ -2,7 +2,18 @@ package com.yaz.calculator.feature.calc
 
 import com.yaz.calculator.ui.component.sink
 import android.text.format.DateUtils
-import androidx.compose.foundation.clickable
+import android.content.ClipData
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
+import com.yaz.calculator.ui.component.PillItem
+import com.yaz.calculator.ui.component.PillMenu
+import com.yaz.calculator.ui.component.PillMotion
+import com.yaz.calculator.ui.component.SwipeAction
+import com.yaz.calculator.ui.component.SwipeRow
+import com.yaz.calculator.ui.component.rememberPillMenu
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -66,40 +77,67 @@ fun HistoryList(vm: CalcViewModel, style: NumberStyle, padding: PaddingValues, o
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp)
                 )
-                is Row.Line -> ZoneSurface(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth().sink(0.97f)) {
-                    Column(Modifier.padding(vertical = 6.dp)) {
-                        Text(
-                            style.show(vm.spelled(row.entry.expression)),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable(onClickLabel = "Write again") {
-                                    feelIt(haptics, vm.takeExpression(row.entry))
-                                    onTaken()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                        )
-                        Text(
-                            "= " + style.show(row.entry.shown),
-                            style = MaterialTheme.typography.headlineSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .clickable(onClickLabel = "Use this result") {
-                                    feelIt(haptics, vm.takeResult(row.entry))
-                                    onTaken()
-                                }
-                                .padding(horizontal = 16.dp, vertical = 6.dp)
-                        )
-                    }
-                }
+                is Row.Line -> Line(vm, style, row.entry, onTaken)
             }
         }
+    }
+}
+
+/**
+ * A past calculation: a tap on its expression writes it again, on its result
+ * takes the result; a swipe either way or its long press menu removes it.
+ */
+@Composable
+private fun Line(vm: CalcViewModel, style: NumberStyle, entry: Entry, onTaken: () -> Unit) {
+    val haptics = rememberHaptics()
+    val menu = rememberPillMenu()
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    val delete = SwipeAction(AppIcons.Delete, "Delete", danger = true) { feelIt(haptics, vm.deleteEntry(entry)) }
+    SwipeRow(start = delete, end = delete, modifier = Modifier.fillMaxWidth().then(menu.tracker)) {
+        ZoneSurface(shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth().sink(0.97f)) {
+            Column(Modifier.padding(vertical = 6.dp)) {
+                Text(
+                    style.show(vm.spelled(entry.expression)),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .combinedClickable(onClickLabel = "Write again", onLongClickLabel = "More", onLongClick = { menu.open() }) {
+                            feelIt(haptics, vm.takeExpression(entry))
+                            onTaken()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+                Text(
+                    "= " + style.show(entry.shown),
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .combinedClickable(onClickLabel = "Use this result", onLongClickLabel = "More", onLongClick = { menu.open() }) {
+                            feelIt(haptics, vm.takeResult(entry))
+                            onTaken()
+                        }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                )
+            }
+        }
+        PillMenu(
+            menu,
+            listOf(
+                PillItem(AppIcons.Copy, "Copy the result", PillMotion.BOUNCE) {
+                    haptics.done()
+                    val text = style.show(entry.shown.removeSuffix("…"))
+                    scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
+                },
+                PillItem(AppIcons.Delete, "Delete", PillMotion.WIGGLE, danger = true) { feelIt(haptics, vm.deleteEntry(entry)) }
+            )
+        )
     }
 }
 
