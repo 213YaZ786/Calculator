@@ -101,13 +101,6 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
     val input = remember(style) { InputTransformation { cleanIn(this, style) } }
     val clipboard = LocalClipboard.current
     val spelling = remember(style, clipboard) { SpelledClipboard(clipboard) { style.show(vm.spelled(it)) } }
-    val wipe = remember { Animatable(0f) }
-    LaunchedEffect(vm.clears) {
-        if (vm.clears > 0) {
-            wipe.snapTo(1f)
-            wipe.animateTo(0f, tween(320))
-        }
-    }
 
     BoxWithConstraints(modifier.padding(horizontal = 20.dp)) {
         val width = maxWidth
@@ -168,11 +161,6 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                             .heightIn(min = with(density) { size.toDp() } * 1.2f)
                             .focusRequester(focus)
                             .semantics { contentDescription = "Expression" }
-                            .graphicsLayer {
-                                // AC wipes the line away to the right.
-                                translationX = wipe.value * width.toPx() * 0.6f
-                                alpha = 1f - wipe.value
-                            }
                             .onPreviewKeyEvent { e ->
                                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                                 when {

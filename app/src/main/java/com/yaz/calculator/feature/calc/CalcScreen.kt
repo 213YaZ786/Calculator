@@ -1,5 +1,11 @@
 package com.yaz.calculator.feature.calc
 
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import android.content.ClipData
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
@@ -77,7 +83,39 @@ fun CalcScreen(
     val haptics = rememberHaptics()
     val density = LocalDensity.current
 
-    BoxWithConstraints(Modifier.fillMaxSize()) {
+    // AOSP Calculator's clear: a disc of the accent grows from the key over the
+    // display (and the status bar), the expression cleared under it, then it fades.
+    var displayRect by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Rect.Zero) }
+    var origin by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val reveal = remember { androidx.compose.animation.core.Animatable(0f) }
+    val fade = remember { androidx.compose.animation.core.Animatable(0f) }
+    androidx.compose.runtime.LaunchedEffect(vm.reveals) {
+        if (vm.reveals == 0) return@LaunchedEffect
+        fade.snapTo(1f)
+        reveal.snapTo(0f)
+        reveal.animateTo(1f, tween(REVEAL_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        vm.clear()
+        fade.animateTo(0f, tween(FADE_MS, easing = androidx.compose.animation.core.FastOutSlowInEasing))
+        reveal.snapTo(0f)
+    }
+    val accent = MaterialTheme.colorScheme.primary
+
+    BoxWithConstraints(
+        Modifier
+            .fillMaxSize()
+            .onGloballyPositioned { origin = it.positionInRoot() }
+            .drawWithContent {
+                drawContent()
+                if (reveal.value > 0f && fade.value > 0f) {
+                    val area = androidx.compose.ui.geometry.Rect(displayRect.left - origin.x, 0f, displayRect.right - origin.x, displayRect.bottom - origin.y)
+                    val centre = vm.clearFrom - origin
+                    val far = listOf(area.topLeft, area.topRight, area.bottomLeft, area.bottomRight).maxOf { (it - centre).getDistance() }
+                    clipRect(area.left, area.top, area.right, area.bottom) {
+                        drawCircle(accent.copy(alpha = fade.value), radius = far * reveal.value, center = centre)
+                    }
+                }
+            }
+    ) {
         val maxW = maxWidth
         val maxH = maxHeight
         val wide = maxWidth > maxHeight * 1.1f
@@ -110,6 +148,7 @@ fun CalcScreen(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
+                        .onGloballyPositioned { displayRect = it.boundsInRoot() }
                         .pointerInput(sideHistory) {
                             if (sideHistory) return@pointerInput
                             detectVerticalDragGestures(
@@ -223,7 +262,7 @@ private fun basicKeys(vm: CalcViewModel, style: NumberStyle): List<List<KeyDef?>
     fun op(c: Char, name: String) = KeyDef(c.toString(), KeyKind.OPERATOR, name) { vm.operator(c) }
     return listOf(
         listOf(
-            KeyDef("AC", KeyKind.CLEAR, "Clear") { vm.clear() },
+            KeyDef("AC", KeyKind.CLEAR, "Clear", pressAt = { vm.clearWithReveal(it) }),
             KeyDef("( )", KeyKind.FUNCTION, "Parenthesis") { vm.parenthesis() },
             KeyDef("%", KeyKind.OPERATOR, "Percent") { vm.suffix(Sym.PERCENT) },
             op(Sym.DIVIDE, "Divide")
@@ -234,7 +273,7 @@ private fun basicKeys(vm: CalcViewModel, style: NumberStyle): List<List<KeyDef?>
         listOf(
             d('0'),
             KeyDef(style.point.toString(), KeyKind.DIGIT, "Point") { vm.point() },
-            KeyDef(null, KeyKind.BACK, "Delete", icon = AppIcons.Backspace) { vm.backspace() },
+            KeyDef(null, KeyKind.BACK, "Delete, hold to clear", icon = AppIcons.Backspace, longPress = { vm.clearWithReveal(it) }) { vm.backspace() },
             KeyDef("=", KeyKind.EQUALS, "Equals") { vm.equals() }
         )
     )
@@ -303,3 +342,7 @@ private fun wideScientific(vm: CalcViewModel): List<List<KeyDef?>> {
 private fun fn(vm: CalcViewModel, inv: Boolean, name: String, inverse: String) =
     if (inv) KeyDef(inverse, KeyKind.FUNCTION, "Inverse $name") { vm.piece("$inverse(") }
     else KeyDef(name, KeyKind.FUNCTION, name) { vm.piece("$name(") }
+
+/** AOSP Calculator's reveal: android's long and medium animation times. */
+private const val REVEAL_MS = 500
+private const val FADE_MS = 400

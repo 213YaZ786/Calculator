@@ -1,5 +1,9 @@
 package com.yaz.calculator.feature.calc
 
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloatAsState
@@ -62,7 +66,11 @@ class KeyDef(
     val icon: ImageVector? = null,
     /** A toggle switched on (DEG, INV): washed in the accent. */
     val on: Boolean = false,
-    val press: () -> Feel
+    /** A long press, given the key's centre in the window (⌫ clears all). */
+    val longPress: ((androidx.compose.ui.geometry.Offset) -> Feel)? = null,
+    /** In place of [press] when the key needs its centre in the window (AC). */
+    val pressAt: ((androidx.compose.ui.geometry.Offset) -> Feel)? = null,
+    val press: () -> Feel = { Feel.TICK }
 )
 
 /**
@@ -105,6 +113,7 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
         delay(index * 14L)
         appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
     }
+    var centre by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val kick = remember { Animatable(0f) }
     val shake = remember { Animatable(0f) }
     val density = LocalDensity.current
@@ -162,8 +171,17 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
                     .fillMaxSize()
                     .clip(shape)
                     .semantics { contentDescription = key.description }
-                    .clickable(interactionSource = press, indication = null, role = Role.Button) {
-                        val feel = key.press()
+                    .onGloballyPositioned { centre = it.boundsInRoot().center }
+                    .combinedClickable(
+                        interactionSource = press,
+                        indication = null,
+                        role = Role.Button,
+                        onLongClick = key.longPress?.let { long -> {
+                            val feel = long(centre)
+                            if (feel == Feel.REJECT) haptics.reject() else haptics.firm()
+                        } }
+                    ) {
+                        val feel = key.pressAt?.invoke(centre) ?: key.press()
                         feelIt(haptics, feel)
                         scope.launch {
                             if (feel == Feel.REJECT) {

@@ -64,10 +64,8 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
     var evaluated by mutableStateOf(false)
         private set
 
-    /** Counts "=" and AC, for their animations. */
+    /** Counts "=", for its animation. */
     var results by mutableIntStateOf(0)
-        private set
-    var clears by mutableIntStateOf(0)
         private set
 
     /** The inverse functions on the scientific keys: sin⁻¹, eˣ, 10ˣ, x². */
@@ -128,6 +126,24 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         return typing.backspace()
     }
 
+    /**
+     * Where the colour that clears the display starts (a key's centre in the
+     * window), and how many times it was asked: AOSP Calculator's onClear,
+     * a circular reveal from the key that clears, the expression cleared under it.
+     */
+    var clearFrom by mutableStateOf(androidx.compose.ui.geometry.Offset.Zero)
+        private set
+    var reveals by mutableIntStateOf(0)
+        private set
+
+    /** AC, or a long press on ⌫: the reveal runs, then [clear] under it. */
+    fun clearWithReveal(from: androidx.compose.ui.geometry.Offset): Feel {
+        if (text.text.isEmpty() && previous == null && error == null) return Feel.REJECT
+        clearFrom = from
+        reveals++
+        return Feel.DONE
+    }
+
     fun clear(): Feel {
         text.setTextAndPlaceCursorAtEnd("")
         evaluated = false
@@ -136,7 +152,6 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         exactForm = null
         live = null
         extra = 0
-        clears++
         return Feel.DONE
     }
 
