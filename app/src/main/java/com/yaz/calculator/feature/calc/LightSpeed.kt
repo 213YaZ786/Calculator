@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
@@ -92,9 +93,12 @@ fun LightSpeed(onEnd: () -> Unit) {
             end()
         }
 
+        // The flash: white over the stars, then the whole of it fades onto the calculator, never back to the stars.
+        val flash = ((elapsed - (DURATION - FLASH)) / FLASH).coerceIn(0f, 1f)
         Canvas(
             Modifier
                 .fillMaxSize()
+                .graphicsLayer { alpha = if (flash < 0.5f) 1f else 2f - flash * 2f }
                 .semantics { contentDescription = "Light speed" }
                 .pointerInput(Unit) {
                     awaitEachGesture {
@@ -128,9 +132,7 @@ fun LightSpeed(onEnd: () -> Unit) {
                 val color = palette[stars[i * 4 + 3].toInt() % palette.size].copy(alpha = (0.25f + 0.75f * near))
                 drawLine(color, tail, head, (0.8f + 2.6f * near * near).dp.toPx(), StrokeCap.Round)
             }
-            // The white flash at the end, the result behind it.
-            val f = ((elapsed - (DURATION - FLASH)) / FLASH).coerceIn(0f, 1f)
-            if (f > 0f) drawRect(Color.White.copy(alpha = if (f < 0.5f) f * 2 else 2 - f * 2))
+            if (flash > 0f) drawRect(Color.White.copy(alpha = (flash * 2f).coerceAtMost(1f)))
         }
     }
 }
