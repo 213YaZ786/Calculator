@@ -30,8 +30,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -141,6 +145,16 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
     val colors = MaterialTheme.colorScheme
     val scroll = rememberScrollState()
     // A figure came: down to it, the keys folded meanwhile.
+    // Where the answer starts in the scrolled column.
+    var answerTop by remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    LaunchedEffect(adv.outcome, adv.computing) {
+        // No figure: the answer brought up under the fields, its first line in sight.
+        if (adv.outcome == null || adv.computing || adv.showingScene) return@LaunchedEffect
+        kotlinx.coroutines.delay(80)
+        val target = (answerTop - with(density) { 120.dp.roundToPx() }).coerceIn(0, scroll.maxValue)
+        if (target > scroll.value) scroll.animateScrollTo(target)
+    }
     LaunchedEffect(adv.outcome, adv.showingScene) {
         if (!adv.showingScene) return@LaunchedEffect
         // Once the keys have folded and the figure is laid out.
@@ -203,10 +217,11 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
         }
         if (adv.computing) androidx.compose.material3.LinearProgressIndicator(color = Gold, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
         adv.outcome?.takeIf { !adv.computing }?.let { o ->
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(8.dp).onGloballyPositioned { answerTop = it.positionInParent().y.toInt() })
             o.lines.forEach { line ->
                 Text(
-                    style.show(line.text.replace('-', '−')),
+                    // Numbers in the user's way; a comma of the sentence stays one (", ").
+                    prose(style, line.text),
                     style = if (line.result) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
                     fontWeight = if (line.result) FontWeight.Bold else FontWeight.Normal,
                     color = if (line.result) colors.primary else colors.onSurface,
@@ -215,13 +230,32 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
             }
             o.scene?.let { scene ->
                 Spacer(Modifier.height(10.dp))
-                SceneView(scene)
+                SceneView(scene, height = figureHeight())
             }
             o.figure?.let { figure ->
                 Spacer(Modifier.height(10.dp))
-                FigureView(figure, style)
+                FigureView(figure, style, height = figureHeight())
             }
             if (o.scene != null || o.figure != null) Spacer(Modifier.height(16.dp))
         }
     }
 }
+
+/**
+ * A program's line in the user's way: the marks of its numbers as theirs,
+ * the commas and full stops of its sentences left as they are.
+ */
+private fun prose(style: NumberStyle, text: String): String {
+    val t = text.replace('-', '−')
+    val kept = StringBuilder()
+    for ((i, c) in t.withIndex()) {
+        val inNumber = i > 0 && i + 1 < t.length && t[i - 1].isDigit() && t[i + 1].isDigit()
+        kept.append(if ((c == '.' || c == ',') && !inNumber) (if (c == '.') '\uE0FE' else '\uE0FF') else c)
+    }
+    return style.show(kept.toString()).replace('\uE0FE', '.').replace('\uE0FF', ',')
+}
+
+/** A figure's height: 300 dp on a phone, more on a taller screen, never an empty half page. */
+@Composable
+private fun figureHeight(): androidx.compose.ui.unit.Dp =
+    (androidx.compose.ui.platform.LocalConfiguration.current.screenHeightDp * 0.42f).dp.coerceIn(300.dp, 620.dp)

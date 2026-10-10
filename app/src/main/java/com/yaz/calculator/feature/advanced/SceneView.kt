@@ -58,7 +58,7 @@ import kotlinx.coroutines.launch
  * cut to the box around the figure, arrows with their heads, labels.
  */
 @Composable
-fun SceneView(scene: Scene, modifier: Modifier = Modifier) {
+fun SceneView(scene: Scene, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 320.dp) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val yaw = remember(scene) { Animatable(-120f) }
@@ -86,7 +86,7 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier) {
         val c = (lo + hi) * 0.5
         c to max(1.0, pts.maxOf { (it - c).norm }) * 1.15
     }
-    ZoneSurface(shape = RoundedCornerShape(24.dp), modifier = modifier.fillMaxWidth().height(320.dp)) {
+    ZoneSurface(shape = RoundedCornerShape(24.dp), modifier = modifier.fillMaxWidth().height(height)) {
         Box(Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp))) {
             Canvas(
                 Modifier.fillMaxSize()

@@ -16,8 +16,13 @@ class Inputs(private val values: Map<String, Double?>, private val texts: Map<St
 
     /** The function typed in [symbol], as a function of x. */
     fun f(symbol: String): (Double) -> Double {
-        val curve = Curve.of(texts[symbol].orEmpty(), degrees) ?: throw IllegalArgumentException(symbol)
-        return { x -> curve(x) }
+        val text = texts[symbol].orEmpty()
+        val curve = Curve.of(text, degrees)
+        // Outside its domain (ln at 0) a value is NaN, never an exception.
+        if (curve != null) return { x -> runCatching { curve(x) }.getOrDefault(Double.NaN) }
+        // A constant, g(x) = 0: as typed, without x.
+        val c = runCatching { Calc().evaluate(text, degrees).crValue().toDouble() }.getOrNull() ?: throw IllegalArgumentException(symbol)
+        return { c }
     }
 
     /** The numbers typed in [symbol], separated by the "," key. */
@@ -56,13 +61,18 @@ class Rich(
             val v = values[fd.symbol] ?: continue
             if (fd.kind == FieldKind.NUMBER && fd.whole && v != Math.rint(v)) return Outcome(listOf(Line(WHOLE.get().format(fd.symbol))))
         }
-        return runCatching { work(Inputs(values, texts, degrees)) }.getOrElse { Outcome(listOf(Line(IMPOSSIBLE.get()))) }
+        val out = runCatching { work(Inputs(values, texts, degrees)) }.getOrElse { Outcome(listOf(Line(IMPOSSIBLE.get()))) }
+        // A function with sin, cos or tan: the angle unit it was read in, said once.
+        val trig = fields.any { it.kind == FieldKind.FUNCTION && texts[it.symbol].orEmpty().let { t -> "sin" in t || "cos" in t || "tan" in t } }
+        return if (trig && out.lines.none { "DEG" in it.text || "RAD" in it.text }) out.copy(lines = out.lines + Line((if (degrees) DEGREES else RADIANS).get())) else out
     }
 
     companion object {
         val ALL = Words("Remplissez toutes les valeurs.", "Fill every value.")
         val WHOLE = Words("%s doit être un entier.", "%s must be a whole number.")
         val IMPOSSIBLE = Words("Pas de résultat avec ces valeurs.", "No result with these values.")
+        val DEGREES = Words("x en degrés (DEG)", "x in degrees (DEG)")
+        val RADIANS = Words("x en radians (RAD)", "x in radians (RAD)")
     }
 }
 

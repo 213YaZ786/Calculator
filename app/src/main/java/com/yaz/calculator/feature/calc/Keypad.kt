@@ -91,7 +91,8 @@ fun KeyGrid(rows: List<List<KeyDef?>>, modifier: Modifier = Modifier, gap: Dp = 
         val columns = rows.maxOf { it.size }
         val cellW = (maxWidth - gap * (columns - 1)) / columns
         val cellH = (maxHeight - gap * (rows.size - 1)) / rows.size
-        val side = min(cellW, cellH)
+        // Keys lying flat (a phone on its side): their labels sized on more than their height.
+        val side = if (cellW > cellH * 1.5f) min(cellH * 1.4f, cellW) else min(cellW, cellH)
         Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(gap)) {
             rows.forEachIndexed { r, row ->
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {

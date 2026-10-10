@@ -64,7 +64,7 @@ import kotlinx.coroutines.launch
  * one shape after another.
  */
 @Composable
-fun FigureView(figure: Figure, style: NumberStyle, modifier: Modifier = Modifier) {
+fun FigureView(figure: Figure, style: NumberStyle, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 300.dp) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
     val home = remember(figure) { figure.frame() }
@@ -85,7 +85,7 @@ fun FigureView(figure: Figure, style: NumberStyle, modifier: Modifier = Modifier
     val grid = colors.outlineVariant.copy(alpha = 0.5f)
     val axis = colors.onSurfaceVariant
     val paper = colors.surface
-    ZoneSurface(shape = RoundedCornerShape(24.dp), modifier = modifier.fillMaxWidth().height(300.dp)) {
+    ZoneSurface(shape = RoundedCornerShape(24.dp), modifier = modifier.fillMaxWidth().height(height)) {
         Box(Modifier.fillMaxSize().clip(RoundedCornerShape(24.dp))) {
             Canvas(
                 Modifier.fillMaxSize()
@@ -268,16 +268,27 @@ private fun DrawScope.drawShapeLabel(s: Shape2, w: Box2, color: Color, ink: Colo
     val p: P2 = when (s) {
         is Shape2.Point -> s.at
         is Shape2.Arrow -> (s.from + s.to) * 0.5
-        is Shape2.Segment -> (s.a + s.b) * 0.5
+        // Towards the end, clear of the middle where areas carry their names.
+        is Shape2.Segment -> s.a + (s.b - s.a) * 0.85
         is Shape2.Polyline -> s.points.last()
         is Shape2.Dots -> s.points.firstOrNull() ?: return
         is Shape2.Circle -> s.centre + P2(s.radius * 0.7071, s.radius * 0.7071)
         is Shape2.Polygon -> s.corners.reduce { a, b -> a + b } * (1.0 / s.corners.size)
-        is Shape2.Area -> { val x = (s.from + s.to) / 2; P2(x, (value(s.top, x) + (s.bottom?.let { value(it, x) } ?: 0.0)) / 2) }
+        is Shape2.Area -> {
+            // Where the area is tallest; above the curve when it is too thin to hold the name.
+            val x = (0..40).map { s.from + (s.to - s.from) * it / 40.0 }.maxBy { x -> abs(value(s.top, x) - (s.bottom?.let { value(it, x) } ?: 0.0)).takeIf { it.isFinite() } ?: -1.0 }
+            val top = value(s.top, x); val low = s.bottom?.let { value(it, x) } ?: 0.0
+            val tall = abs(sy(top) - sy(low))
+            if (tall > 44.dp.toPx()) P2(x, (top + low) / 2) else P2(x, max(top, low) + (w.yMax - w.yMin) * 0.07)
+        }
         is Shape2.Curve -> {
-            // Near the right edge, where the curve is in sight.
-            val x = min(s.to, w.xMax) - (w.xMax - w.xMin) * 0.08
-            P2(x, value(s.f, x))
+            // Near the right edge, the last place where the curve is well in sight.
+            val right = min(s.to, w.xMax) - (w.xMax - w.xMin) * 0.08
+            val left = max(s.from, w.xMin)
+            val h = w.yMax - w.yMin
+            (0..60).map { right - (right - left) * it / 60.0 }
+                .firstOrNull { x -> value(s.f, x).let { it.isFinite() && it > w.yMin + h * 0.12 && it < w.yMax - h * 0.12 } }
+                ?.let { P2(it, value(s.f, it)) } ?: return
         }
     }
     if (!p.x.isFinite() || !p.y.isFinite()) return
@@ -285,6 +296,13 @@ private fun DrawScope.drawShapeLabel(s: Shape2, w: Box2, color: Color, ink: Colo
     val o = Offset(sx(p.x), sy(p.y))
     // An area's or a polygon's name in its middle; the others beside their point.
     val centred = s is Shape2.Area || s is Shape2.Polygon
-    val place = if (centred) Offset((o.x - text.size.width / 2).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)) else Offset((o.x + 8).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height - 4).coerceIn(0f, size.height - text.size.height))
+    // A curve's name on the free side: below a rising curve, above a falling one.
+    val rising = when (s) {
+        is Shape2.Curve -> { val h = (w.xMax - w.xMin) * 0.01; value(s.f, p.x + h) > value(s.f, p.x - h) }
+        is Shape2.Polyline -> s.points.size >= 2 && s.points.last().y > s.points[s.points.size - 2].y
+        else -> false
+    }
+    val place = if (rising) Offset((o.x + 10).coerceIn(0f, size.width - text.size.width), (o.y + 6).coerceIn(0f, size.height - text.size.height))
+    else if (centred) Offset((o.x - text.size.width / 2).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height / 2).coerceIn(0f, size.height - text.size.height)) else Offset((o.x + 8).coerceIn(0f, size.width - text.size.width), (o.y - text.size.height - 4).coerceIn(0f, size.height - text.size.height))
     drawText(text, topLeft = place, color = lerp(color, ink, 0.35f))
 }

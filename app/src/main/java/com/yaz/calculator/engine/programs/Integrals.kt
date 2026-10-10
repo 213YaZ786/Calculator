@@ -92,7 +92,7 @@ private fun exactly(v: Inputs, f: String, a: String, b: String, numeric: Double)
 
 /** "∫ = exact ≈ value", or the value alone. */
 private fun valueLine(name: String, value: Double, ex: Ex?): String =
-    if (ex == null) "$name ≈ ${show(value)}" else if (ex is Num) "$name = ${exact(ex)}" else "$name = ${exact(ex)} ≈ ${show(value)}"
+    if (ex == null || exact(ex).length > 36 || Regex("\\d{10,}").containsMatchIn(exact(ex))) "$name ≈ ${show(value)}" else if (ex is Num) "$name = ${exact(ex)}" else "$name = ${exact(ex)} ≈ ${show(value)}"
 
 /** [x] as a fraction p/q, q ≤ 100, when it is one to 10⁻¹⁰. */
 private fun fraction(x: Double): Q? {
@@ -102,6 +102,47 @@ private fun fraction(x: Double): Q? {
     }
     return null
 }
+
+/**
+ * Where f is not defined or blows up on [a, b] (1/x at 0), else null: the
+ * integral of the lycée does not exist there, an improper one may.
+ */
+internal fun discontinuity(f: (Double) -> Double, a: Double, b: Double): Double? = pole(f, a, b)?.let { x -> fraction(x)?.let { it.n.toDouble() / it.d.toDouble() } ?: x }
+
+private fun pole(f: (Double) -> Double, a: Double, b: Double): Double? {
+    val lo = min(a, b); val hi = max(a, b)
+    val n = 4000
+    for (i in 0..n) {
+        val x = lo + (hi - lo) * i / n
+        if (!f(x).isFinite()) return x
+    }
+    // A sign change through a pole: Brent lands where |f| is huge.
+    for (x in crossings(f, lo, hi, n)) if (abs(f(x)) > 1e6) return x
+    // A pole between two samples of the same sign (1/x² at 0): closing in on
+    // the largest |f|, it keeps growing instead of settling.
+    val ys = (0..n).map { abs(f(lo + (hi - lo) * it / n)) }
+    val i = ys.indices.maxBy { ys[it] }
+    var l = lo + (hi - lo) * (i - 1).coerceAtLeast(0) / n; var r = lo + (hi - lo) * (i + 1).coerceAtMost(n) / n
+    val start = ys[i]
+    var peak = start; var at = lo + (hi - lo) * i / n
+    repeat(8) {
+        for (k in 0..40) {
+            val x = l + (r - l) * k / 40
+            val y = abs(f(x))
+            if (!y.isFinite()) return x
+            if (y > peak) { peak = y; at = x }
+        }
+        val w = (r - l) / 20
+        l = max(lo, at - w); r = min(hi, at + w)
+    }
+    return if (peak > 1e3 * max(1.0, start) && peak > 1e6) at else null
+}
+
+/** The lines when f has a pole on [a, b]. */
+private fun notContinuous(x: Double) = Outcome(listOf(
+    res(say("f n'est pas continue en x = ${show(x)} : pas d'intégrale sur [a ; b]", "f is not continuous at x = ${show(x)}: no integral on [a, b]")),
+    stp(say("Une intégrale impropre peut exister : programme « Intégrale impropre », jusqu'à ${show(x)}", "An improper integral may exist: the \"Improper integral\" program, up to ${show(x)}"))
+))
 
 /** Rounding noise of a sum of terms of size [scale] taken to zero. */
 private fun clean(v: Double, scale: Double) = if (abs(v) < 1e-12 * max(1.0, scale)) 0.0 else v
@@ -114,6 +155,7 @@ val integrals: List<Program> = listOf(
         listOf(fn("f", "f(x)", "f(x)"), num("a", "a", "a"), num("b", "b", "b"))
     ) { v ->
         val f = v.f("f"); val a = v["a"]; val b = v["b"]
+        discontinuity(f, a, b)?.let { return@Rich notContinuous(it) }
         val value = gauss(f, a, b)
         val ex = exactly(v, "f", "a", "b", value)
         val lo = min(a, b); val hi = max(a, b)
@@ -135,6 +177,7 @@ val integrals: List<Program> = listOf(
         listOf(fn("f", "f(x)", "f(x)"), num("a", "a", "a"), num("c", "c", "c"), num("b", "b", "b"))
     ) { v ->
         val f = v.f("f"); val a = v["a"]; val c = v["c"]; val b = v["b"]
+        discontinuity(f, minOf(a, b, c), maxOf(a, b, c))?.let { return@Rich notContinuous(it) }
         val i1 = gauss(f, a, c); val i2 = gauss(f, c, b); val all = gauss(f, a, b)
         val e1 = exactly(v, "f", "a", "c", i1)?.second; val e2 = exactly(v, "f", "c", "b", i2)?.second; val e = exactly(v, "f", "a", "b", all)?.second
         val lo = minOf(a, b, c); val hi = maxOf(a, b, c); val p = pad(lo, hi)
@@ -147,7 +190,7 @@ val integrals: List<Program> = listOf(
                 stp(say(if (c in min(a, b)..max(a, b)) "c entre a et b : les deux aires se juxtaposent" else "c hors de [a ; b] : la relation vaut encore, une intégrale se retranche", if (c in min(a, b)..max(a, b)) "c between a and b: the two areas sit side by side" else "c outside [a, b]: it still holds, one integral is taken away"))
             ),
             figure = Figure(
-                listOf(Shape2.Curve(f, lo - p, hi + p, "f"), Shape2.Area(f, min(a, c), max(a, c), label = "∫ₐᶜ"), Shape2.Area(f, min(c, b), max(c, b), label = "∫꜀ᵇ", tone = 2), Shape2.Point(P2(c, f(c)), "c", tone = 2)),
+                listOf(Shape2.Curve(f, lo - p, hi + p, "f"), Shape2.Area(f, min(a, c), max(a, c), label = "∫ₐᶜ"), Shape2.Area(f, min(c, b), max(c, b), label = "∫꜀ᵇ", tone = 2), Shape2.Point(P2(c, f(c)), tone = 2)),
                 staged = true, window = around(f, lo - p, hi + p)
             )
         )
@@ -162,9 +205,13 @@ val integrals: List<Program> = listOf(
         val (a, b) = if (given) min(v["a"], v["b"]) to max(v["a"], v["b"]) else {
             // The outermost meeting points within ±50.
             val meet = crossings(d, -50.0, 50.0, 4000)
-            require(meet.size >= 2)
+            if (meet.size < 2) return@Rich lines(
+                res(say(if (meet.isEmpty()) "Les courbes ne se coupent pas entre −50 et 50 : donnez a et b" else "Les courbes ne se coupent qu'en x = ${show(meet[0])} : donnez a et b", if (meet.isEmpty()) "The curves do not meet between −50 and 50: give a and b" else "The curves only meet at x = ${show(meet[0])}: give a and b")),
+                stp(say(if (v.degrees) "Angles en degrés (DEG)" else "Angles en radians (RAD)", if (v.degrees) "Angles in degrees (DEG)" else "Angles in radians (RAD)"))
+            )
             meet.first() to meet.last()
         }
+        discontinuity(d, a, b)?.let { return@Rich notContinuous(it) }
         val cuts = listOf(a) + crossings(d, a, b) + listOf(b)
         val pieces = cuts.zipWithNext().map { (p, q) -> gauss(d, p, q) }
         val area = pieces.sumOf { abs(it) }
@@ -195,6 +242,7 @@ val integrals: List<Program> = listOf(
     ) { v ->
         val f = v.f("f"); val a = min(v["a"], v["b"]); val b = max(v["a"], v["b"])
         require(b > a)
+        discontinuity(f, a, b)?.let { return@Rich notContinuous(it) }
         val value = gauss(f, a, b)
         val mu = value / (b - a)
         val ex = exactly(v, "f", "a", "b", gauss(f, v["a"], v["b"]))?.second?.let { e ->
@@ -220,6 +268,7 @@ val integrals: List<Program> = listOf(
     ) { v ->
         val f = v.f("f"); val a = v["a"]
         val x = if (v.has("x")) v["x"] else a + 3
+        discontinuity(f, a, x)?.let { return@Rich notContinuous(it) }
         val out = mutableListOf<Line>()
         // F exact: G(x) − G(a), G a primitive.
         val exactF = runCatching {
@@ -253,6 +302,7 @@ val integrals: List<Program> = listOf(
     ) { v ->
         val f = v.f("f"); val a = min(v["a"], v["b"]); val b = max(v["a"], v["b"]); val n = v.int("N")
         require(n in 10..2_000_000 && b > a)
+        discontinuity(f, a, b)?.let { return@Rich notContinuous(it) }
         val top = (0..1000).maxOf { f(a + (b - a) * it / 1000).let { y -> if (y.isFinite()) y else 0.0 } } * 1.05
         require(top > 0)
         val rng = kotlin.random.Random(System.nanoTime())
@@ -316,6 +366,7 @@ val integrals: List<Program> = listOf(
     ) { v ->
         val g = v.f("g"); val h = v.f("h"); val a = v["a"]; val b = v["b"]; val n = v.int("N")
         require(n in 1..40)
+        discontinuity({ x -> g(x) * h(x).pow(n) }, a, b)?.let { return@Rich notContinuous(it) }
         val values = (0..n).map { k -> gauss({ x -> g(x) * h(x).pow(k) }, a, b) }
         val out = mutableListOf<Line>()
         // The first ones exact: their pattern shows the recurrence.
@@ -349,6 +400,7 @@ val integrals: List<Program> = listOf(
     ) { v ->
         val f = v.f("f"); val a = min(v["a"], v["b"]); val b = max(v["a"], v["b"])
         val g = if (v.has("g")) v.f("g") else null
+        discontinuity(f, a, b)?.let { return@Rich notContinuous(it) }
         val volume = PI * gauss({ x -> f(x).pow(2) - (g?.invoke(x)?.pow(2) ?: 0.0) }, a, b)
         val ex = runCatching {
             val fe = v.exact("f")
@@ -425,6 +477,7 @@ val integrals: List<Program> = listOf(
         listOf(fn("f", "f(x)", "f(x)"), num("a", "a", "a"), num("b", "b", "b"))
     ) { v ->
         val f = v.f("f"); val a = v["a"]; val b = v["b"]
+        discontinuity(f, a, b)?.let { return@Rich notContinuous(it) }
         val length = abs(gauss({ x -> sqrt(1 + slope(f, x).pow(2)) }, a, b))
         fun chords(n: Int) = (0 until n).sumOf { i -> val x0 = a + (b - a) * i / n; val x1 = a + (b - a) * (i + 1) / n; sqrt((x1 - x0).pow(2) + (f(x1) - f(x0)).pow(2)) }
         val broken = (0..6).map { i -> val x = a + (b - a) * i / 6; P2(x, f(x)) }
@@ -435,6 +488,104 @@ val integrals: List<Program> = listOf(
                 stp(say("Chaque corde mesure √(Δx² + Δy²) ; à la limite √(1 + f′²)·dx", "Each chord is √(Δx² + Δy²); in the limit √(1 + f′²)·dx"))
             ),
             figure = Figure(listOf(Shape2.Curve(f, min(a, b), max(a, b), "f"), Shape2.Polyline(broken, say("6 cordes", "6 chords"), tone = 2), Shape2.Dots(broken, tone = 2)), staged = true, square = true)
+        )
+    }
+)
+
+/** From the same texts: the harmonic sum between two integrals, volumes by known cross sections, Archimedes' quadrature. */
+val integralsMore: List<Program> = listOf(
+    Rich(
+        "harmonic-bounds", Subject.ANALYSIS, title("Somme harmonique et intégrales", "Harmonic sum and integrals"), "ln(n + 1) ≤ Hₙ ≤ 1 + ln n",
+        listOf(num("n", "n", "n", whole = true))
+    ) { v ->
+        val n = v.long("n")
+        require(n in 1..100_000_000)
+        var h = 0.0
+        for (k in 1..n) h += 1.0 / k
+        val shown = min(n, 12L).toInt()
+        // Rectangles of width 1 and height 1/k on [k ; k + 1], over the curve; the same shifted left, under it.
+        val shapes = mutableListOf<Shape2>()
+        for (k in 1..shown) shapes += Shape2.rect(k.toDouble(), 0.0, k + 1.0, 1.0 / k, tone = 1)
+        for (k in 2..shown) shapes += Shape2.rect(k - 1.0, 0.0, k.toDouble(), 1.0 / k, tone = 2)
+        shapes += Shape2.Curve({ 1 / it }, 0.6, shown + 1.4, "1/x")
+        Outcome(
+            listOf(
+                res("H$n = ${show(h)}"),
+                res("${show(ln(n + 1.0))} ≤ H$n ≤ ${show(1 + ln(n.toDouble()))}"),
+                stp(say("1/(k + 1) ≤ ∫ₖᵏ⁺¹ dx/x ≤ 1/k, ajouté de k = 1 à n", "1/(k + 1) ≤ ∫ₖᵏ⁺¹ dx/x ≤ 1/k, summed from k = 1 to n")),
+                stp(say("Hₙ − ln n = ${show(h - ln(n.toDouble()))} → γ = 0.5772156649 (constante d'Euler)", "Hₙ − ln n = ${show(h - ln(n.toDouble()))} → γ = 0.5772156649 (Euler's constant)")),
+                stp(say("Hₙ tend vers +∞, comme ln n", "Hₙ goes to +∞, as ln n"))
+            ),
+            figure = Figure(shapes, staged = shown <= 6, window = Box2(0.5, shown + 1.5, -0.12, 1.15))
+        )
+    },
+    Rich(
+        "cross-sections", Subject.ANALYSIS, title("Volume par sections connues", "Volume by known cross sections"), "V = ∫ₐᵇ A(x) dx, côté s = f(x) − g(x)",
+        listOf(fn("f", "f(x), bord haut", "f(x), top edge"), fn("g", "g(x), bord bas", "g(x), bottom edge"), num("a", "a", "a"), num("b", "b", "b"))
+    ) { v ->
+        val f = v.f("f"); val g = v.f("g"); val a = min(v["a"], v["b"]); val b = max(v["a"], v["b"])
+        discontinuity({ x -> f(x) - g(x) }, a, b)?.let { return@Rich notContinuous(it) }
+        val s2 = gauss({ x -> (f(x) - g(x)).pow(2) }, a, b)
+        val ex = runCatching {
+            val F = integrate(simplify(Pow(simplify(v.exact("f") - v.exact("g")), cnum(2))), fr()).result!!
+            definite(F, v.exact(if (v["a"] <= v["b"]) "a" else "b"), v.exact(if (v["a"] <= v["b"]) "b" else "a")).takeIf { abs(it.at(0.0) - s2) < 1e-7 * max(1.0, s2) }
+        }.getOrNull()
+        fun times(k: Ex, label: String, kd: Double) = res(label + " " + valueLine("V", kd * s2, ex?.let { simplify(Mul(listOf(k, it))) }))
+        // The base between the curves on the floor, a square standing on each slice.
+        val shapes = ArrayList<Shape3>()
+        val n = 14
+        for (i in 0 until n) {
+            val x0 = a + (b - a) * i / n; val x1 = a + (b - a) * (i + 1) / n
+            val lo0 = g(x0); val hi0 = f(x0); val lo1 = g(x1); val hi1 = f(x1)
+            shapes += Shape3.Face(listOf(Vec3(x0, lo0, 0.0), Vec3(x1, lo1, 0.0), Vec3(x1, hi1, 0.0), Vec3(x0, hi0, 0.0)), tone = 2, soft = true)
+            val side = abs(hi0 - lo0)
+            if (i % 2 == 0) shapes += Shape3.Face(listOf(Vec3(x0, lo0, 0.0), Vec3(x0, hi0, 0.0), Vec3(x0, hi0, side), Vec3(x0, lo0, side)), tone = 0)
+        }
+        Outcome(
+            listOf(
+                times(cnum(1), say("Carrés :", "Squares:"), 1.0),
+                times(simplify(Mul(listOf(PI_EX, Pow(cnum(8), cnum(-1))))), say("Demi-disques :", "Semicircles:"), PI / 8),
+                times(simplify(Mul(listOf(Pow(cnum(3), Num(Q.HALF)), Pow(cnum(4), cnum(-1))))), say("Triangles équilatéraux :", "Equilateral triangles:"), sqrt(3.0) / 4),
+                times(simplify(Pow(cnum(4), cnum(-1))), say("Triangles rectangles isocèles (côté = hypoténuse) :", "Isosceles right triangles (side = hypotenuse):"), 0.25),
+                stp(say("Chaque tranche perpendiculaire à l'axe des x a pour côté s = f(x) − g(x) ; A(x) = s², πs²/8, (√3/4)s², s²/4", "Each slice across the x axis has side s = f(x) − g(x); A(x) = s², πs²/8, (√3/4)s², s²/4"))
+            ),
+            scene = Scene(shapes)
+        )
+    },
+    Rich(
+        "archimedes-parabola", Subject.ANALYSIS, title("Quadrature de la parabole (Archimède)", "Quadrature of the parabola (Archimedes)"), "A = 4/3 × triangle",
+        listOf(num("p", "p, parabole y = px²", "p, parabola y = px²"), num("u", "Abscisse u", "Point u"), num("w", "Abscisse w", "Point w"), num("k", "Étapes (≤ 6)", "Steps (≤ 6)", whole = true))
+    ) { v ->
+        val p = v["p"]; val u = min(v["u"], v["w"]); val w = max(v["u"], v["w"]); val k = v.int("k")
+        require(p != 0.0 && w > u && k in 1..6)
+        val f = { x: Double -> p * x * x }
+        // Each step puts, on every chord, the triangle whose apex is where the tangent is parallel to it: the midpoint's abscissa.
+        val shapes = mutableListOf<Shape2>(Shape2.Curve(f, u - (w - u) * 0.3, w + (w - u) * 0.3, "y = px²"), Shape2.Segment(P2(u, f(u)), P2(w, f(w)), tone = 3))
+        var chords = listOf(u to w)
+        var total = 0.0; var first = 0.0
+        val sums = ArrayList<Double>()
+        for (step in 1..k) {
+            val next = ArrayList<Pair<Double, Double>>()
+            for ((x0, x1) in chords) {
+                val m = (x0 + x1) / 2
+                val t = abs((x1 - x0) * (f(m) - f(x0)) - (m - x0) * (f(x1) - f(x0))) / 2
+                if (step == 1) first = t
+                total += t
+                shapes += Shape2.Polygon(listOf(P2(x0, f(x0)), P2(m, f(m)), P2(x1, f(x1))), tone = (step - 1) % 6, label = if (step == 1) "T" else "")
+                next += x0 to m; next += m to x1
+            }
+            sums += total
+            chords = next
+        }
+        val exactArea = abs(p) * (w - u).pow(3) / 6
+        Outcome(
+            listOf(
+                res(say("Aire du segment ", "Segment's area ") + show(exactArea) + " = 4/3 × T"),
+                stp("T = ${show(first)}; T(1 + 1/4 + 1/16 + …) = 4T/3"),
+                stp(sums.withIndex().joinToString("   ") { (i, x) -> "S${i + 1} = ${show(x)}" }),
+                stp(say("Chaque étape ajoute 2ⁿ triangles d'aire totale le quart de la précédente", "Each step adds 2ⁿ triangles, a quarter of the previous ones' area"))
+            ),
+            figure = Figure(shapes, staged = true)
         )
     }
 )

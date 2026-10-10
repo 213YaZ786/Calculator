@@ -209,6 +209,13 @@ fun niceStep(raw: Double): Double {
 /** [v] with up to [digits] decimals, in the user's way. */
 fun number(v: Double, style: NumberStyle, digits: Int): String {
     if (!v.isFinite()) return "—"
+    // Very large or very small: 1.6×10²¹, as the calculator writes a power of ten.
+    if (v != 0.0 && (abs(v) >= 1e7 || abs(v) < 1e-4)) {
+        val e = floor(log10(abs(v))).toInt()
+        val m = java.math.BigDecimal(v / 10.0.pow(e)).setScale(2, java.math.RoundingMode.HALF_EVEN).stripTrailingZeros().toPlainString()
+        val sup = e.toString().map { c -> if (c == '-') '⁻' else "⁰¹²³⁴⁵⁶⁷⁸⁹"[c - '0'] }.joinToString("")
+        return style.show(m.replace('-', '−')) + "×10" + sup
+    }
     val rounded = java.math.BigDecimal(v).setScale(digits, java.math.RoundingMode.HALF_EVEN).stripTrailingZeros().toPlainString()
         .let { if (it == "-0" || it == "0.0") "0" else it }
     return style.show(rounded.replace('-', '−'))

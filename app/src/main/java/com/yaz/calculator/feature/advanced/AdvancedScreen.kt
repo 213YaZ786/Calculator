@@ -148,7 +148,8 @@ fun AdvancedScreen(
     if (wide) {
         androidx.compose.foundation.layout.BoxWithConstraints(modifier) {
             // The keys as wide as round keys need (seven rows of five), the screen the rest.
-            val keysWidth = minOf(maxHeight * 5f / 7.2f, maxWidth * 0.5f)
+            // A phone on its side is too low for round keys: flat ones, on 45 % of the width.
+            val keysWidth = if (maxHeight < 400.dp) maxWidth * 0.45f else minOf(maxHeight * 5f / 7.2f, maxWidth * 0.5f)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Screen(calc, adv, style, calcDisplay, { menu = it }, Modifier.weight(1f).fillMaxHeight())
                 if (!hidden) keys(Modifier.width(keysWidth).fillMaxHeight())

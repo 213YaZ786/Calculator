@@ -109,4 +109,37 @@ class IntegralsTest {
         val t = text("arc-length", mapOf("f" to "4x÷3", "a" to "0", "b" to "3"))
         assertTrue(t, t.contains("L ≈ 5"))
     }
+
+    @Test
+    fun harmonicBounds() {
+        val t = text("harmonic-bounds", mapOf("n" to "10"))
+        assertTrue(t, t.contains("H10 = 2.928968"))
+    }
+
+    @Test
+    fun crossSections() {
+        // Between x and 0 on [0 ; 1]: squares of side x, volume 1/3.
+        val t = text("cross-sections", mapOf("f" to "x", "g" to "0", "a" to "0", "b" to "1"))
+        assertTrue(t, t.contains("Squares: V = 1/3"))
+        assertTrue(t, t.contains("Semicircles: V = π/24"))
+    }
+
+    @Test
+    fun archimedes() {
+        // y = x² on [0 ; 2]: segment 4/3, first triangle 1.
+        val t = text("archimedes-parabola", mapOf("p" to "1", "u" to "0", "w" to "2", "k" to "3"))
+        assertTrue(t, t.contains("Segment's area 1.333333333"))
+        assertTrue(t, t.contains("T = 1;"))
+    }
+
+    @Test
+    fun aPoleIsNotIntegrated() {
+        val t = text("area-integral", mapOf("f" to "1÷x", "a" to "−1", "b" to "1"))
+        assertTrue(t, t.contains("not continuous at x = 0"))
+        val u = text("mean-value", mapOf("f" to "1÷x²", "a" to "−1", "b" to "2"))
+        assertTrue(u, u.contains("not continuous"))
+        // ln on ]0 ; 2]: not defined at 0.
+        val w = text("area-integral", mapOf("f" to "ln(x)", "a" to "0", "b" to "2"))
+        assertTrue(w, w.contains("not continuous"))
+    }
 }

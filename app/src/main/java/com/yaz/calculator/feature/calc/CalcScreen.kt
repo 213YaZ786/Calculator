@@ -211,7 +211,7 @@ fun CalcScreen(
         val maxH = maxHeight
         val wide = maxWidth > maxHeight * 1.1f
         // The advanced mode takes the whole width.
-        val sideHistory = wide && maxWidth >= 840.dp && !vm.advanced
+        val sideHistory = wide && maxWidth >= 840.dp && maxHeight >= 480.dp && !vm.advanced
         val tablet = !wide && maxWidth >= 600.dp
         val sciOpen = tablet || settings.scientificOpen
 
@@ -266,6 +266,22 @@ fun CalcScreen(
                             onQuit = { feelIt(haptics, vm.toggleAdvanced()) },
                             modifier = turned.then(bottom)
                         )
+                    } else if (wide && maxH < 480.dp) Row(turned.then(bottom)) {
+                        // A phone on its side: the display on the left, the keys on the right, each the whole height.
+                        Display(
+                            vm,
+                            style,
+                            memoryOn = ledger.memory != null,
+                            modifier = Modifier
+                                .weight(0.4f)
+                                .fillMaxHeight()
+                                .onGloballyPositioned { displayRect = it.boundsInRoot() }
+                        ) { ResultActions(vm, style) }
+                        Spacer(Modifier.width(12.dp))
+                        Row(Modifier.weight(0.6f).fillMaxHeight(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
+                            KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
+                        }
                     } else Column(turned) {
                         Display(
                             vm,

@@ -147,7 +147,8 @@ private fun MainScreen(nav: NavHostController, style: NumberStyle, mode: Mode, o
     BackHandler(historyOpen) { historyOpen = false }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val sideHistory = maxWidth > maxHeight * 1.1f && maxWidth >= 840.dp
+        // A tablet lying down; a phone on its side keeps its height for the keys.
+        val sideHistory = maxWidth > maxHeight * 1.1f && maxWidth >= 840.dp && maxHeight >= 480.dp && !calc.advanced
         FloatingFrame(
             bottom = 0.dp,
             top = {
