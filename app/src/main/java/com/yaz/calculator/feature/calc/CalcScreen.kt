@@ -250,6 +250,7 @@ fun CalcScreen(
                             vm,
                             style,
                             memoryOn = ledger.memory != null,
+                            tape = !sideHistory,
                             modifier = Modifier
                                 .weight(1f)
                                 .fillMaxWidth()

@@ -109,7 +109,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: Modifier = Modifier, actions: @Composable () -> Unit) {
+fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: Modifier = Modifier, tape: Boolean = true, actions: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -182,7 +182,8 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
             Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(rememberScrollState(), reverseScrolling = true),
             horizontalAlignment = Alignment.End
         ) {
-            Tape(vm, style)
+            // Not when the history stands beside: it would show the same lines twice.
+            if (tape) Tape(vm, style)
         }
         Column(
             Modifier.fillMaxWidth().heightIn(max = room - ACTIONS_ROOM).verticalScroll(rememberScrollState(), reverseScrolling = true),
