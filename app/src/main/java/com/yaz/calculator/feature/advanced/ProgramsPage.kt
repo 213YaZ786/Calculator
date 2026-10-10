@@ -58,8 +58,12 @@ import kotlinx.coroutines.awaitCancellation
 /** PRGM: the programs by subject, then the one open, its fields typed with the keys. */
 @Composable
 fun ProgramsPage(adv: AdvancedViewModel, style: NumberStyle) {
-    val open = adv.program
-    if (open == null) ProgramList(adv) else ProgramView(adv, style)
+    when {
+        adv.editing != null -> ProgramEditor(adv)
+        adv.running != null -> ProgramRun(adv, style)
+        adv.program != null -> ProgramView(adv, style)
+        else -> ProgramList(adv)
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -94,6 +98,7 @@ private fun ProgramList(adv: AdvancedViewModel) {
         val shown = if (q.isEmpty()) programs else programs.filter { p ->
             listOf(p.title.fr, p.title.en, p.formula, p.subject.title.fr, p.subject.title.en).any { it.contains(q, ignoreCase = true) }
         }
+        if (q.isEmpty()) MyPrograms(adv)
         if (shown.isEmpty()) Text(NOTHING.get(), color = colors.onSurfaceVariant, modifier = Modifier.padding(16.dp))
         Subject.entries.forEach { subject ->
             val list = shown.filter { it.subject == subject }

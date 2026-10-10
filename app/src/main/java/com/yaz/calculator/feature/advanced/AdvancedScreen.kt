@@ -115,7 +115,9 @@ fun AdvancedScreen(
     val haptics = rememberHaptics()
     var menu by remember { mutableStateOf(Menu.NONE) }
     // On the graph and the table the keys fold to their gold row: the screen takes the room, as the TI's GRAPH.
-    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.program == null)
+    // Writing a program takes the phone's keyboard: the keys fold away entirely then.
+    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.program == null && adv.running == null)
+    val hidden = adv.page == Page.PROGRAMS && adv.editing != null
     val keys: @Composable (Modifier) -> Unit = { m ->
         Column(m) {
             KeyGrid(listOf(goldRow(adv, onQuit) { menu = it }), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp)
@@ -141,7 +143,7 @@ fun AdvancedScreen(
             val keysWidth = minOf(maxHeight * 5f / 7.2f, maxWidth * 0.5f)
             Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Screen(calc, adv, style, calcDisplay, { menu = it }, Modifier.weight(1f).fillMaxHeight())
-                keys(Modifier.width(keysWidth).fillMaxHeight())
+                if (!hidden) keys(Modifier.width(keysWidth).fillMaxHeight())
             }
         }
     } else {
@@ -154,7 +156,7 @@ fun AdvancedScreen(
                 else -> keysHeight
             }
             val height by animateDpAsState(target, spring(dampingRatio = 0.8f, stiffness = 300f), label = "keys")
-            keys(Modifier.fillMaxWidth().height(height))
+            if (!hidden) keys(Modifier.fillMaxWidth().height(height))
         }
     }
 
@@ -436,6 +438,7 @@ private const val TABLE_ROWS = 1000
 private fun type(calc: CalcViewModel, adv: AdvancedViewModel, onCalc: (CalcViewModel) -> Feel = { Feel.REJECT }, onFunction: (com.yaz.calculator.feature.calc.Typing) -> Feel): Feel {
     if (adv.page == Page.CALC) return onCalc(calc)
     // A program's fields, as the TI's Prompt; the list itself takes no typing.
+    if (adv.page == Page.PROGRAMS && adv.running != null) return if (adv.asking != null) onFunction(adv.answerTyping) else Feel.REJECT
     if (adv.page == Page.PROGRAMS) return adv.programTypings.getOrNull(adv.programField)?.let(onFunction) ?: Feel.REJECT
     if (adv.page == Page.STATS) return onFunction(adv.cell()).also { adv.statsChanged() }
     if (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.BASES) adv.page = Page.FUNCTIONS
@@ -517,7 +520,7 @@ private fun mainKeys(calc: CalcViewModel, adv: AdvancedViewModel, style: NumberS
             KeyDef(if (onCalc || adv.page == Page.PROGRAMS) "=" else null, KeyKind.EQUALS, if (onCalc) "Equals" else if (adv.page == Page.PROGRAMS) "Run the program" else if (adv.page == Page.STATS) "Next row" else "Next function", icon = if (onCalc || adv.page == Page.PROGRAMS) null else AppIcons.KeyboardReturn) {
                 when (adv.page) {
                     Page.CALC -> calc.equals()
-                    Page.PROGRAMS -> adv.runProgram()
+                    Page.PROGRAMS -> if (adv.running != null) adv.submit() else adv.runProgram()
                     Page.STATS -> adv.nextCell()
                     Page.FUNCTIONS -> adv.next()
                     else -> { adv.page = Page.FUNCTIONS; Feel.TICK }

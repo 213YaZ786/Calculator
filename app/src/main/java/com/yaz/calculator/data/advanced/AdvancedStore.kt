@@ -19,6 +19,10 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class Function(val expression: String = "", val on: Boolean = true)
 
+/** A TI-Basic program the user wrote. */
+@Serializable
+data class UserProgram(val name: String, val source: String)
+
 /** The graph's window, as the TI's WINDOW screen. */
 @Serializable
 data class Window(val xMin: Double = -10.0, val xMax: Double = 10.0, val yMin: Double = -10.0, val yMax: Double = 10.0)
@@ -31,7 +35,9 @@ data class AdvancedData(
     val tableStep: Double = 1.0,
     /** STAT's lists L1 and L2, as typed (the app's form). */
     val l1: List<String> = emptyList(),
-    val l2: List<String> = emptyList()
+    val l2: List<String> = emptyList(),
+    /** The user's own TI-Basic programs. */
+    val userPrograms: List<UserProgram> = emptyList()
 ) {
     companion object {
         /** Y1 to Y6, as many as the TI-82's function screen. */

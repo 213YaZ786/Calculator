@@ -159,6 +159,133 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
         return Feel.DONE
     }
 
+    // ---------- the user's TI-Basic programs ----------
+
+    /** The program being written: its index, −1 for a new one; null when none. */
+    var editing by mutableStateOf<Int?>(null)
+        private set
+    val editorName = TextFieldState()
+    val editorSource = TextFieldState()
+
+    fun edit(index: Int) {
+        val p = data.value.userPrograms.getOrNull(index)
+        editorName.setTextAndPlaceCursorAtEnd(p?.name ?: "")
+        editorSource.setTextAndPlaceCursorAtEnd(p?.source ?: "")
+        editing = if (p == null) -1 else index
+        stop()
+        running = null
+    }
+
+    fun saveEdit(): Feel {
+        val i = editing ?: return Feel.REJECT
+        val name = editorName.text.toString().trim().take(16).ifEmpty { return Feel.REJECT }
+        val program = com.yaz.calculator.data.advanced.UserProgram(name, editorSource.text.toString().take(MAX_SOURCE))
+        store.update { d -> d.copy(userPrograms = if (i < 0) d.userPrograms + program else d.userPrograms.toMutableList().also { it[i] = program }) }
+        editing = null
+        return Feel.DONE
+    }
+
+    fun cancelEdit() { editing = null }
+
+    fun deleteProgram(index: Int): Feel {
+        store.update { d -> d.copy(userPrograms = d.userPrograms.filterIndexed { i, _ -> i != index }) }
+        running = null
+        return Feel.DONE
+    }
+
+    /** The program running: its index; its console; what it waits for. */
+    var running by mutableStateOf<Int?>(null)
+        private set
+    val console = androidx.compose.runtime.mutableStateListOf<String>()
+    var asking by mutableStateOf<String?>(null)
+        private set
+    var choosing by mutableStateOf<Pair<String, List<String>>?>(null)
+        private set
+    var paused by mutableStateOf(false)
+        private set
+    var finished by mutableStateOf(false)
+        private set
+    val answer = TextFieldState()
+    val answerTyping = Typing(answer)
+    private var reply: kotlinx.coroutines.CompletableDeferred<Double>? = null
+    private var picked: kotlinx.coroutines.CompletableDeferred<Int>? = null
+    private var resumed: kotlinx.coroutines.CompletableDeferred<Unit>? = null
+    private var runJob: Job? = null
+    @Volatile private var stopping = false
+
+    fun runUser(index: Int) {
+        val p = data.value.userPrograms.getOrNull(index) ?: return
+        stop()
+        running = index
+        console.clear()
+        finished = false
+        stopping = false
+        val io = object : com.yaz.calculator.engine.tibasic.Interpreter.Io {
+            override fun show(line: String) { if (console.size < MAX_LINES) console += line }
+            override fun clear() = console.clear()
+            override suspend fun ask(prompt: String): Double {
+                val d = kotlinx.coroutines.CompletableDeferred<Double>()
+                reply = d
+                answer.setTextAndPlaceCursorAtEnd("")
+                asking = prompt
+                return d.await().also { console += "$prompt ${com.yaz.calculator.engine.tibasic.Interpreter.write(it)}"; asking = null }
+            }
+            override suspend fun choose(title: String, options: List<String>): Int {
+                val d = kotlinx.coroutines.CompletableDeferred<Int>()
+                picked = d
+                choosing = title to options
+                return d.await().also { choosing = null }
+            }
+            override suspend fun pause(line: String?) {
+                line?.let { console += it }
+                val d = kotlinx.coroutines.CompletableDeferred<Unit>()
+                resumed = d
+                paused = true
+                d.await()
+                paused = false
+            }
+            override fun stopped() = stopping
+        }
+        runJob = viewModelScope.launch {
+            try {
+                // Off the main thread; the interpreter stops itself after a million statements.
+                kotlinx.coroutines.withContext(Dispatchers.Default) {
+                    com.yaz.calculator.engine.tibasic.Interpreter(p.source, io, degrees).run()
+                }
+            } catch (e: com.yaz.calculator.engine.tibasic.Interpreter.Failure) {
+                console += "ERR: ${e.message}"
+            } catch (_: kotlinx.coroutines.CancellationException) {
+            } catch (e: Exception) {
+                console += "ERR"
+            }
+            asking = null; choosing = null; paused = false
+            finished = true
+        }
+    }
+
+    /** "=" while a program runs: the answer typed, or on after a Pause. */
+    fun submit(): Feel {
+        if (paused) { resumed?.complete(Unit); return Feel.TICK }
+        val d = reply ?: return Feel.REJECT
+        if (asking == null) return Feel.REJECT
+        val v = runCatching { com.yaz.calculator.engine.Calc().evaluate(answer.text.toString(), degrees).crValue().toDouble() }.getOrNull() ?: return Feel.REJECT
+        d.complete(v)
+        return Feel.DONE
+    }
+
+    fun pick(i: Int) { picked?.complete(i) }
+
+    fun stop() {
+        stopping = true
+        runJob?.cancel()
+        runJob = null
+    }
+
+    fun closeRun() {
+        stop()
+        running = null
+    }
+
     // ---------- PRGM ----------
 
     /** The program open on the PRGM page, null for the list. */
@@ -369,6 +496,8 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     private companion object {
         val UNREADABLE = com.yaz.calculator.engine.programs.Words("%s ne se lit pas.", "%s does not read.")
         const val SAMPLES = 600
+        const val MAX_SOURCE = 20_000
+        const val MAX_LINES = 500
         const val MAX_EVALUATIONS = 100_000
     }
 }
