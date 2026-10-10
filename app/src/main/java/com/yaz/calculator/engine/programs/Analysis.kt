@@ -44,6 +44,26 @@ private fun signChanges(g: (Double) -> Double, a: Double, b: Double, steps: Int 
     return out
 }
 
+/** The window around [f] on [a, b]: its values, the axis in sight. */
+internal fun around(f: (Double) -> Double, a: Double, b: Double): Box2 = Figure(listOf(Shape2.Curve(f, a, b))).frame()
+
+/** The cobweb of uₙ₊₁ = f(uₙ): y = x, the curve, and the steps from one term to the next. */
+private fun cobweb(f: (Double) -> Double, us: List<Double>, s: Double): Figure {
+    val lo = minOf(us.min(), s); val hi = max(us.max(), s); val pad = max(0.5, (hi - lo) * 0.15)
+    val path = ArrayList<P2>()
+    path += P2(us[0], 0.0)
+    for (i in 0 until us.size - 1) { path += P2(us[i], us[i + 1]); path += P2(us[i + 1], us[i + 1]) }
+    return Figure(
+        listOf(
+            Shape2.Curve({ it }, lo - pad, hi + pad, "y = x", tone = 2, dashed = true),
+            Shape2.Curve(f, lo - pad, hi + pad, "f"),
+            Shape2.Curve({ s }, lo - pad, hi + pad, "S", tone = 3, dashed = true),
+            Shape2.Polyline(path, tone = 1)
+        ),
+        staged = true, square = true
+    )
+}
+
 private fun terms(values: List<Double>, more: Boolean) = values.joinToString("  ") { show(it) } + if (more) "  …" else ""
 
 /** Taylor's coefficients of [f] at [a], from its Chebyshev interpolation on [a − r, a + r]: accurate for smooth functions. */
@@ -116,16 +136,21 @@ val analysis: List<Program> = listOf(
         val f = v.f("f"); var u = v["u₀"]; val s = v["S"]
         val up = u <= s
         val seen = ArrayList<Double>()
+        val path = arrayListOf(u)
         var n = 0
         while (if (up) u <= s else u >= s) {
             if (seen.size < 8) seen += u
             u = f(u); n++
+            if (path.size <= 30) path += u
             require(u.isFinite() && n <= 1_000_000)
         }
-        lines(
-            res(if (up) "n = $n  (u$n = ${show(u)} > ${show(s)})" else "n = $n  (u$n = ${show(u)} < ${show(s)})"),
-            stp("u₀, u₁, … : ${terms(seen, n > 8)}"),
-            stp(say("Algorithme : n ← 0 ; tant que u ${if (up) "≤" else "≥"} S : u ← f(u), n ← n + 1", "Algorithm: n ← 0; while u ${if (up) "≤" else "≥"} S: u ← f(u), n ← n + 1"))
+        Outcome(
+            listOf(
+                res(if (up) "n = $n  (u$n = ${show(u)} > ${show(s)})" else "n = $n  (u$n = ${show(u)} < ${show(s)})"),
+                stp("u₀, u₁, … : ${terms(seen, n > 8)}"),
+                stp(say("Algorithme : n ← 0 ; tant que u ${if (up) "≤" else "≥"} S : u ← f(u), n ← n + 1", "Algorithm: n ← 0; while u ${if (up) "≤" else "≥"} S: u ← f(u), n ← n + 1"))
+            ),
+            figure = cobweb(f, path, s)
         )
     },
     Rich(
@@ -142,11 +167,21 @@ val analysis: List<Program> = listOf(
             stp(say("Pentes des sécantes, (f(a + h) − f(a)) / h :", "Slopes of the secants, (f(a + h) − f(a)) / h:"))
         )
         for (h in listOf(1.0, 0.1, 0.01, 0.001)) out += stp("h = ${show(h)} : ${show((f(a + h) - fa) / h)}")
+        val step = if (v.has("h")) v["h"] else 1.0
         if (v.has("h")) {
             val h = v["h"]
             out += res(say("f(a + h) ≈ f(a) + f′(a)·h = ${show(fa + slope * h)}  (exact ${show(f(a + h))})", "f(a + h) ≈ f(a) + f′(a)·h = ${show(fa + slope * h)}  (exact ${show(f(a + h))})"))
         }
-        Outcome(out)
+        // The curve, secants closing on the tangent, then the tangent.
+        val span = max(2.0, abs(step) * 2.5)
+        val shapes = mutableListOf<Shape2>(Shape2.Curve(f, a - span, a + span, "f"))
+        for ((i, h) in listOf(step, step / 2, step / 4).withIndex()) {
+            val m = (f(a + h) - fa) / h
+            if (m.isFinite()) shapes += Shape2.Curve({ x -> fa + m * (x - a) }, a - span, a + span, tone = 2, dashed = true, label = if (i == 0) say("sécante", "secant") else "")
+        }
+        shapes += Shape2.Curve({ x -> fa + slope * (x - a) }, a - span, a + span, say("tangente", "tangent"), tone = 1)
+        shapes += Shape2.Point(P2(a, fa), "A")
+        Outcome(out, figure = Figure(shapes, staged = true, window = around(f, a - span, a + span)))
     },
     Rich(
         "newton", Subject.ANALYSIS, title("Méthode de Newton", "Newton's method"), "xₙ₊₁ = xₙ − f(xₙ) / f′(xₙ)",
@@ -154,18 +189,28 @@ val analysis: List<Program> = listOf(
     ) { v ->
         val f = v.f("f"); var x = v["x₀"]
         val out = mutableListOf<Line>()
+        val visits = arrayListOf(x)
         for (k in 1..40) {
             val slope = d1(f, x)
             require(slope != 0.0 && slope.isFinite())
             val next = x - f(x) / slope
             require(next.isFinite())
             if (k <= 8) out += stp("x$k = ${show(next)}")
+            if (k <= 5) visits += next
             val done = abs(next - x) < 1e-12 * max(1.0, abs(next))
             x = next
             if (done) {
                 out.add(0, res("x ≈ ${show(x)}   f(x) = ${show(f(x))}"))
                 out.add(1, stp(say("$k itérations", "$k iterations")))
-                return@Rich Outcome(out)
+                // Each tangent down to the axis, where the next start is.
+                val lo = visits.min(); val hi = visits.max(); val pad = max(1.0, (hi - lo) * 0.3)
+                val shapes = mutableListOf<Shape2>(Shape2.Curve(f, lo - pad, hi + pad, "f"))
+                visits.zipWithNext().forEachIndexed { i, (p, q) ->
+                    shapes += Shape2.Segment(P2(p, 0.0), P2(p, f(p)), tone = 2, dashed = true)
+                    shapes += Shape2.Segment(P2(p, f(p)), P2(q, 0.0), tone = 1, label = if (i < 3) "T$i" else "")
+                }
+                shapes += Shape2.Point(P2(x, 0.0), "x")
+                return@Rich Outcome(out, figure = Figure(shapes, staged = true, window = around(f, lo - pad, hi + pad)))
             }
         }
         lines(stp(say("Pas de convergence en 40 itérations : un autre départ ?", "No convergence in 40 iterations: another start?")))
@@ -177,16 +222,22 @@ val analysis: List<Program> = listOf(
         val f = v.f("f"); var a = v["a"]; var b = v["b"]; val e = abs(v["ε"])
         require(e > 0 && f(a) * f(b) < 0)
         val out = mutableListOf<Line>()
+        val a0 = a; val b0 = b
+        // Each interval kept, a bar a little lower than the one before.
+        val bars = mutableListOf<Shape2>()
+        val drop = (b0 - a0) * 0.06
         var k = 0
         while (b - a > e && k < 200) {
             val m = (a + b) / 2
             if (f(a) * f(m) <= 0) b = m else a = m
             k++
             if (k <= 6) out += stp("[${show(a)} ; ${show(b)}]")
+            if (k <= 6) bars += Shape2.Segment(P2(a, -drop * k), P2(b, -drop * k), tone = 1)
         }
         out.add(0, res("${show(a)} ≤ x ≤ ${show(b)}"))
         out.add(1, stp(say("$k étapes, amplitude ${show(b - a)}", "$k steps, width ${show(b - a)}")))
-        Outcome(out)
+        val pad = (b0 - a0) * 0.15
+        Outcome(out, figure = Figure(listOf<Shape2>(Shape2.Curve(f, a0 - pad, b0 + pad, "f"), Shape2.Segment(P2(a0, 0.0), P2(b0, 0.0), tone = 2)) + bars + Shape2.Point(P2((a + b) / 2, 0.0), "x"), staged = true))
     },
     Rich(
         "convexity", Subject.ANALYSIS, title("Variations, convexité, inflexion", "Variations, convexity, inflection"), "f′(x) = 0, f″(x) = 0",
@@ -206,7 +257,15 @@ val analysis: List<Program> = listOf(
             out += stp("[${show(cuts[i])} ; ${show(cuts[i + 1])}] : " + if (d2(f, mid) > 0) say("convexe (f″ > 0)", "convex (f″ > 0)") else say("concave (f″ < 0)", "concave (f″ < 0)"))
         }
         if (extrema.isEmpty() && inflections.isEmpty()) out += res(say("Ni extremum ni inflexion sur [a ; b]", "No extremum nor inflection on [a ; b]"))
-        Outcome(out)
+        val shapes = mutableListOf<Shape2>(Shape2.Curve(f, a, b, "f"))
+        extrema.forEach { x -> shapes += Shape2.Point(P2(x, f(x)), if (d2(f, x) > 0) "min" else "max") }
+        inflections.forEach { x ->
+            // The tangent crossing the curve there.
+            val m = d1(f, x); val y = f(x); val r = (b - a) * 0.15
+            shapes += Shape2.Segment(P2(x - r, y - m * r), P2(x + r, y + m * r), tone = 2, dashed = true)
+            shapes += Shape2.Point(P2(x, y), "I", tone = 1)
+        }
+        Outcome(out, figure = Figure(shapes, window = around(f, a, b)))
     },
     Rich(
         "integral", Subject.ANALYSIS, title("Intégrale : rectangles, trapèzes, Simpson", "Integral: rectangles, trapezoids, Simpson"), "∫ₐᵇ f(x) dx",
@@ -223,13 +282,17 @@ val analysis: List<Program> = listOf(
         val trap = h * (ys.first() / 2 + (1 until n).sumOf { ys[it] } + ys.last() / 2)
         val simpson = h / 3 * (ys.first() + ys.last() + (1 until n).sumOf { if (it % 2 == 1) 4 * ys[it] else 2 * ys[it] })
         val exact = runCatching { IterativeLegendreGaussIntegrator(16, 1e-14, 1e-14).integrate(1_000_000, UnivariateFunction { f(it) }, minOf(a, b), max(a, b)) * (if (a <= b) 1 else -1) }.getOrNull()
+        // The midpoint rectangles, at most 40 shown, then the curve over them.
+        val shown = minOf(n, 40); val hs = (b - a) / shown
+        val rects = (0 until shown).map { i -> val x0 = a + i * hs; Shape2.rect(x0, 0.0, x0 + hs, f(x0 + hs / 2), tone = 1) }
         Outcome(listOfNotNull(
             res("Simpson : ${show(simpson)}"),
             stp(say("Rectangles à gauche ${show(left)}, à droite ${show(right)}, au milieu ${show(mid)}", "Rectangles left ${show(left)}, right ${show(right)}, midpoint ${show(mid)}")),
             stp(say("Trapèzes ${show(trap)}", "Trapezoids ${show(trap)}")),
             exact?.let { res(say("Valeur (Gauss-Legendre) ${show(it)}", "Value (Gauss–Legendre) ${show(it)}")) },
-            stp(say("Valeur moyenne ${show((exact ?: simpson) / (b - a))}", "Mean value ${show((exact ?: simpson) / (b - a))}"))
-        ))
+            stp(say("Valeur moyenne ${show((exact ?: simpson) / (b - a))}", "Mean value ${show((exact ?: simpson) / (b - a))}")),
+            if (shown < n) stp(say("Figure : $shown rectangles au milieu", "Figure: $shown midpoint rectangles")) else null
+        ), figure = Figure(rects + Shape2.Curve(f, a, b, "f"), staged = shown <= 12))
     },
     Rich(
         "linear-ode", Subject.ANALYSIS, title("Équation y′ = ay + b", "Equation y′ = ay + b"), "y = (y₀ + b/a)·e^(a(x − x₀)) − b/a",
@@ -244,14 +307,22 @@ val analysis: List<Program> = listOf(
             out += stp(say("Solution constante (équilibre) y = −b/a = ${show(-b / a)}", "Constant solution (equilibrium) y = −b/a = ${show(-b / a)}"))
         }
         out += res("y(${show(x)}) = ${show(exact)}")
+        val sol = { t: Double -> if (a == 0.0) y0 + b * (t - x0) else (y0 + b / a) * exp(a * (t - x0)) - b / a }
+        val shapes = mutableListOf<Shape2>()
+        if (a != 0.0) shapes += Shape2.Curve({ -b / a }, minOf(x0, x), max(x0, x), tone = 2, dashed = true)
+        shapes += Shape2.Curve(sol, minOf(x0, x), max(x0, x), "y")
         if (v.has("h")) {
             val h = abs(v["h"]).let { if (x >= x0) it else -it }
             require(h != 0.0)
             var t = x0; var y = y0; var k = 0
-            while ((x - t) / h > 1e-9 && k < 1_000_000) { y += h * (a * y + b); t += h; k++ }
+            val broken = arrayListOf(P2(t, y))
+            while ((x - t) / h > 1e-9 && k < 1_000_000) { y += h * (a * y + b); t += h; k++; if (broken.size <= 400) broken += P2(t, y) }
             out += stp(say("Euler (h = ${show(abs(h))}, $k pas) : ${show(y)}, écart ${show(y - exact)}", "Euler (h = ${show(abs(h))}, $k steps): ${show(y)}, error ${show(y - exact)}"))
+            shapes += Shape2.Polyline(broken, "Euler", tone = 1)
         }
-        Outcome(out)
+        shapes += Shape2.Point(P2(x0, y0), "y₀")
+        shapes += Shape2.Point(P2(x, exact), tone = 1)
+        Outcome(out, figure = Figure(shapes, staged = true))
     },
     Rich(
         "logistic", Subject.ANALYSIS, title("Modèle logistique", "Logistic model"), "P′ = rP(1 − P/K)",
@@ -270,7 +341,14 @@ val analysis: List<Program> = listOf(
             require(p in 0.0..k)
             out += res(say("P = ${show(p)} en t = ${show(ln(c * p / (k - p)) / r)}", "P = ${show(p)} at t = ${show(ln(c * p / (k - p)) / r)}"))
         }
-        Outcome(out)
+        val end = max(abs(t), if (c > 0) 2 * abs(ln(c) / r) else 0.0).coerceAtLeast(1.0)
+        val shapes = mutableListOf<Shape2>(
+            Shape2.Curve({ k }, 0.0, end, "K", tone = 2, dashed = true),
+            Shape2.Curve({ x -> k / (1 + c * exp(-r * x)) }, 0.0, end, "P")
+        )
+        if (c > 0 && ln(c) / r in 0.0..end) shapes += Shape2.Point(P2(ln(c) / r, k / 2), "K/2", tone = 1)
+        shapes += Shape2.Point(P2(t, k / (1 + c * exp(-r * t))))
+        Outcome(out, figure = Figure(shapes))
     },
     Rich(
         "taylor", Subject.ANALYSIS, title("Série de Taylor", "Taylor series"), "f(x) ≈ Σ f⁽ᵏ⁾(a)/k!·(x − a)ᵏ",
@@ -286,7 +364,12 @@ val analysis: List<Program> = listOf(
             val tx = c.withIndex().sumOf { (k, ck) -> ck * (x - a).pow(k) }
             out += res(say("Tₙ(${show(x)}) = ${show(tx)}   f(${show(x)}) = ${show(f(x))}   écart ${show(f(x) - tx)}", "Tₙ(${show(x)}) = ${show(tx)}   f(${show(x)}) = ${show(f(x))}   error ${show(f(x) - tx)}"))
         }
-        Outcome(out)
+        // f, then the polynomial hugging it near a.
+        val r = if (v.has("x")) max(2.0, abs(v["x"] - a) * 1.4) else 3.0
+        Outcome(out, figure = Figure(
+            listOf(Shape2.Curve(f, a - r, a + r, "f"), Shape2.Curve({ x -> c.withIndex().sumOf { (k, ck) -> ck * (x - a).pow(k) } }, a - r, a + r, "T$n", tone = 1), Shape2.Point(P2(a, f(a)))),
+            staged = true, window = around(f, a - r, a + r)
+        ))
     },
     Rich(
         "series", Subject.ANALYSIS, title("Série numérique", "Numerical series"), "Sₙ = Σₖ u(k)",
@@ -321,7 +404,11 @@ val analysis: List<Program> = listOf(
         val integrator = IterativeLegendreGaussIntegrator(16, 1e-12, 1e-12)
         val area = 0.5 * integrator.integrate(1_000_000, UnivariateFunction { r(it).pow(2) }, a, b)
         val length = integrator.integrate(1_000_000, UnivariateFunction { sqrt(r(it).pow(2) + d1(r, it).pow(2)) }, a, b)
-        lines(res(say("Aire ${show(area)}", "Area ${show(area)}")), res(say("Longueur ${show(length)}", "Length ${show(length)}")))
+        val path = (0..600).map { i -> val t = a + (b - a) * i / 600; val q = r(t); P2(q * cos(t), q * kotlin.math.sin(t)) }.filter { it.x.isFinite() && it.y.isFinite() }
+        Outcome(
+            listOf(res(say("Aire ${show(area)}", "Area ${show(area)}")), res(say("Longueur ${show(length)}", "Length ${show(length)}"))),
+            figure = Figure(listOf(Shape2.Polygon(path, tone = 1), Shape2.Polyline(path, "r")), square = true)
+        )
     }
 )
 

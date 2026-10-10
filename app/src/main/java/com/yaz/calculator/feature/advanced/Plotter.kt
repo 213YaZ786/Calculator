@@ -161,7 +161,7 @@ fun Plotter(
     }
 }
 
-private fun DrawScope.gridAndAxes(
+internal fun DrawScope.gridAndAxes(
     w: Window, measurer: TextMeasurer, label: TextStyle, style: NumberStyle, grid: Color, axis: Color,
     sx: (Double) -> Float, sy: (Double) -> Float
 ) {

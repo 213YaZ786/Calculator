@@ -65,6 +65,15 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier) {
     var pitch by remember(scene) { mutableFloatStateOf(22f) }
     var zoom by remember(scene) { mutableFloatStateOf(1f) }
     LaunchedEffect(scene) { yaw.animateTo(-35f, spring(dampingRatio = 0.75f, stiffness = 40f)) }
+    // A staged scene: one shape after another, 0.6 s each; else all at once.
+    val drawn = remember(scene) { Animatable(if (scene.staged) 0f else 1f) }
+    val count = scene.shapes.size.coerceAtLeast(1)
+    suspend fun play() {
+        if (!scene.staged) return
+        drawn.snapTo(0f)
+        drawn.animateTo(1f, androidx.compose.animation.core.tween((600 * count).coerceAtMost(6000), easing = androidx.compose.animation.core.LinearEasing))
+    }
+    LaunchedEffect(scene) { play() }
     val palette = curveColors(MaterialTheme.colorScheme.primary)
     val ink = MaterialTheme.colorScheme.onSurface
     val faint = MaterialTheme.colorScheme.onSurfaceVariant
@@ -93,6 +102,7 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier) {
                             haptics.tick()
                             pitch = 22f; zoom = 1f
                             scope.launch { yaw.animateTo(-35f, spring(dampingRatio = 0.8f, stiffness = 120f)) }
+                            scope.launch { play() }
                         })
                     }
             ) {
@@ -103,9 +113,19 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier) {
                 val flat = scene.shapes.filter { it is Shape3.Plane || it is Shape3.Face }.sortedByDescending { s ->
                     when (s) { is Shape3.Plane -> view.depth(s.through); is Shape3.Face -> s.corners.map(view::depth).average(); else -> 0.0 }
                 }
-                flat.forEach { s -> drawFlat(view, s, palette[s.tone % palette.size]) }
-                scene.shapes.filter { it !is Shape3.Plane && it !is Shape3.Face }.forEach { s -> drawShape(view, s, palette[s.tone % palette.size]) }
-                scene.shapes.forEach { s -> drawLabel(view, s, palette[s.tone % palette.size], ink, measurer) }
+                fun shown(s: Shape3) = (drawn.value * count - scene.shapes.indexOf(s)).coerceIn(0f, 1f)
+                flat.filter { shown(it) > 0f }.forEach { s -> drawFlat(view, s, palette[s.tone % palette.size].let { c -> c.copy(alpha = c.alpha * shown(s)) }) }
+                scene.shapes.filter { it !is Shape3.Plane && it !is Shape3.Face && shown(it) > 0f }.forEach { s ->
+                    // An arrow or a segment grows from its start.
+                    val t = shown(s).toDouble()
+                    val grown = when (s) {
+                        is Shape3.Arrow -> s.copy(to = s.from + (s.to - s.from) * t)
+                        is Shape3.Segment -> s.copy(b = s.a + (s.b - s.a) * t)
+                        else -> s
+                    }
+                    drawShape(view, grown, palette[s.tone % palette.size])
+                }
+                scene.shapes.filter { shown(it) >= 1f }.forEach { s -> drawLabel(view, s, palette[s.tone % palette.size], ink, measurer) }
             }
             ZoneSurface(shape = CircleShape, accent = true, modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
                 Text("3D", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
@@ -205,6 +225,15 @@ private fun DrawScope.drawFlat(v: View, s: Shape3, color: Color) {
     val path = Path().apply {
         corners.map(v::screen).forEachIndexed { i, p -> if (i == 0) moveTo(p.x, p.y) else lineTo(p.x, p.y) }
         close()
+    }
+    if (s is Shape3.Face && s.soft) {
+        // Lit from above left: brighter where the face looks at the light.
+        val n = ((corners[1] - corners[0]) cross (corners[corners.size - 1] - corners[0])).unit()
+        val light = abs(n dot Vec3(-0.45, -0.35, 0.82))
+        val k = 0.35f + 0.65f * light.toFloat()
+        drawPath(path, androidx.compose.ui.graphics.lerp(color.copy(alpha = 0.55f), Color.White.copy(alpha = 0.7f), (k - 0.35f) * 0.55f).copy(alpha = 0.22f + 0.38f * k))
+        drawPath(path, color.copy(alpha = 0.10f), style = Stroke(width = 0.6.dp.toPx()))
+        return
     }
     val pts = corners.map(v::screen)
     val top = pts.minOf { it.y }; val bottom = pts.maxOf { it.y }

@@ -303,6 +303,9 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
         private set
 
     fun open(p: Program?) {
+        programJob?.cancel()
+        computing = false
+        showingScene = false
         program = p
         programFields = p?.fields?.map { TextFieldState() }.orEmpty()
         programTypings = programFields.map(::Typing)
@@ -332,10 +335,26 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
                     ?: run { outcome = Outcome(listOf(com.yaz.calculator.engine.programs.Line(UNREADABLE.get().format(f.symbol)))); return Feel.REJECT }
             }
         }
-        outcome = p.run(values, texts, degrees)
-        showingScene = outcome?.scene != null
-        return if (outcome!!.lines.any { it.result }) Feel.DONE else Feel.REJECT
+        // Off the main thread (integrals, Monte-Carlo, figures), the last "=" winning; 10 s at most.
+        programJob?.cancel()
+        computing = true
+        programJob = viewModelScope.launch {
+            val o = kotlinx.coroutines.withTimeoutOrNull(10_000) {
+                kotlinx.coroutines.runInterruptible(Dispatchers.Default) { p.run(values, texts, degrees) }
+            } ?: Outcome(listOf(com.yaz.calculator.engine.programs.Line(TOO_LONG.get())))
+            if (program !== p) return@launch
+            outcome = o
+            showingScene = o.scene != null || o.figure != null
+            computing = false
+        }
+        return Feel.DONE
     }
+
+    private var programJob: Job? = null
+
+    /** A program working: its lines wait. */
+    var computing by mutableStateOf(false)
+        private set
 
     fun toggle(i: Int): Feel {
         store.update { d -> d.copy(functions = d.functions.toMutableList().also { it[i] = it[i].copy(on = !it[i].on) }) }
@@ -510,6 +529,7 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
 
     private companion object {
         val UNREADABLE = com.yaz.calculator.engine.programs.Words("%s ne se lit pas.", "%s does not read.")
+        val TOO_LONG = com.yaz.calculator.engine.programs.Words("Calcul trop long : d'autres valeurs ?", "Taking too long: other values?")
         const val SAMPLES = 600
         const val MAX_SOURCE = 20_000
         const val MAX_LINES = 500

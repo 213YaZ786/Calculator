@@ -32,10 +32,12 @@ sealed interface Shape3 {
     data class Line(val through: Vec3, val direction: Vec3, override val label: String = "", override val tone: Int = 0) : Shape3
     data class Plane(val through: Vec3, val normal: Vec3, override val label: String = "", override val tone: Int = 0) : Shape3
     data class Segment(val a: Vec3, val b: Vec3, override val label: String = "", override val tone: Int = 0, val dashed: Boolean = false) : Shape3
-    data class Face(val corners: List<Vec3>, override val label: String = "", override val tone: Int = 0) : Shape3
+    /** [soft]: a piece of a surface (a solid of revolution), shaded by the light, its edges faint. */
+    data class Face(val corners: List<Vec3>, override val label: String = "", override val tone: Int = 0, val soft: Boolean = false) : Shape3
 }
 
-data class Scene(val shapes: List<Shape3>) {
+/** [staged]: the shapes come one after another (Chasles' arrows, then the one that closes them). */
+data class Scene(val shapes: List<Shape3>, val staged: Boolean = false) {
     /** Every place the scene names, for its size. */
     val anchors: List<Vec3> get() = shapes.flatMap { s ->
         when (s) {

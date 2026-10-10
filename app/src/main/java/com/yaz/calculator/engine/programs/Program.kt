@@ -35,8 +35,8 @@ data class Field(
 /** A line of what a program gives back: a result to read, or a step of the working. */
 data class Line(val text: String, val result: Boolean = false)
 
-/** What a run gives: the lines, the values it found for the fields left empty, and a scene in space to look at. */
-data class Outcome(val lines: List<Line>, val found: Map<String, Double> = emptyMap(), val scene: Scene? = null)
+/** What a run gives: the lines, the values it found for the fields left empty, a scene in space or a figure of the plane to look at. */
+data class Outcome(val lines: List<Line>, val found: Map<String, Double> = emptyMap(), val scene: Scene? = null, val figure: Figure? = null)
 
 /** A program of the PRGM menu: fields to fill, then [run] works out the rest. */
 interface Program {

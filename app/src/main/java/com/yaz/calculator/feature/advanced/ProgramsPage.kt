@@ -201,7 +201,8 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                 Text(field.unit, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, textAlign = TextAlign.End, modifier = Modifier.weight(0.15f))
             }
         }
-        adv.outcome?.let { o ->
+        if (adv.computing) androidx.compose.material3.LinearProgressIndicator(color = Gold, modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp))
+        adv.outcome?.takeIf { !adv.computing }?.let { o ->
             Spacer(Modifier.height(8.dp))
             o.lines.forEach { line ->
                 Text(
@@ -216,6 +217,11 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                 Spacer(Modifier.height(10.dp))
                 SceneView(scene)
             }
+            o.figure?.let { figure ->
+                Spacer(Modifier.height(10.dp))
+                FigureView(figure, style)
+            }
+            if (o.scene != null || o.figure != null) Spacer(Modifier.height(16.dp))
         }
     }
 }
