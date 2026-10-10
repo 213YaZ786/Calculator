@@ -160,7 +160,7 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
             ) {
                 Column(Modifier.weight(0.45f)) {
                     Text(field.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(field.name.get(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2)
+                    if (field.name.get() != field.symbol) Text(field.name.get(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2)
                 }
                 InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
                     BasicTextField(
