@@ -8,7 +8,9 @@ data class LineValue(
     val moment: Moment? = null,
     /** "y = x² − 3": the curve to draw, and the line as written for its legend. */
     val curve: Curve? = null,
-    val legend: String? = null
+    val legend: String? = null,
+    /** An egg: "Euler" for e^(iπ) + 1, "Mandelbrot" for z² + c. */
+    val egg: String? = null
 )
 
 /**
@@ -61,6 +63,10 @@ class SheetEval(
                 val label = m.groupValues[1].trim()
                 body = if (label.lowercase() in TOTAL && m.groupValues[2].isBlank()) label else m.groupValues[2].trim()
             }
+            // Euler's identity and the Mandelbrot set's recurrence (the maths expertes programme).
+            val compact = line.removeSuffix("=").replace(" ", "").replace("**", "^").replace("−", "-").replace("·", "").replace("*", "").lowercase()
+            if (compact in EULER) { out += LineValue(UnifiedReal.ZERO, total = false, egg = "Euler"); continue }
+            if (compact in MANDELBROT) { out += LineValue(UnifiedReal.ZERO, total = false, egg = "Mandelbrot"); continue }
             // y = x² − 3, f(x) = 2x + 1: a curve to draw (Apple Math Notes), when x is not a name above.
             val plotted = FUNCTION_LINE.matchEntire(line.removeSuffix("=").trim())?.groupValues?.get(1)
                 ?: body.takeIf { name?.lowercase() == "y" }
@@ -170,6 +176,8 @@ class SheetEval(
         private val LIFE = listOf("life", "vie", "vida", "leben", "vita", "leven")
         private val UNIVERSE = listOf("univers", "universo", "universum")
         private val EVERYTHING = listOf("everything", "reste", "tout", "todo", "rest", "alles", "tutto", "tudo")
+        private val EULER = setOf("e^(iπ)+1", "e^(πi)+1", "exp(iπ)+1", "e^(ipi)+1", "e^(pii)+1", "exp(ipi)+1")
+        private val MANDELBROT = setOf("z²+c", "z^2+c", "zₙ₊₁=zₙ²+c", "z=z²+c", "z=z^2+c", "f(z)=z²+c", "f(z)=z^2+c")
         private val FUNCTION_LINE = Regex("^\\p{L}\\s*\\(\\s*x\\s*\\)\\s*=\\s*(.+)$")
         private val ASSIGNMENT = Regex("^([\\p{L}_][\\p{L}\\p{N}_]*)\\s*=\\s*(.+)$")
         private val LABEL = Regex("^([^:=]*\\p{L}[^:=]*):\\s*(.*)$")

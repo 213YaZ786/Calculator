@@ -40,6 +40,10 @@ import com.yaz.calculator.ui.component.ZoneSurface
 import com.yaz.calculator.ui.component.rememberHaptics
 import com.yaz.calculator.ui.component.sink
 import com.yaz.calculator.ui.icon.AppIcons
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.animateFloat
+import com.yaz.calculator.feature.advanced.Gold
+import androidx.compose.ui.graphics.graphicsLayer
 
 /**
  * Windows Calculator's Programmer display: the expression in the chosen
@@ -76,6 +80,8 @@ fun ProgrammerDisplay(vm: CalcViewModel, modifier: Modifier = Modifier, chip: Bo
                 color = colors.onBackground,
                 modifier = Modifier.fillMaxWidth().semantics { contentDescription = "Expression" }
             )
+            // CAFEBABE (Java's class files) and DEADBEEF: a cup of coffee, steaming.
+            if (value == 0xCAFEBABEL || value == 0xDEADBEEFL) Coffee()
             vm.progError?.let {
                 Text(errorText(it), style = MaterialTheme.typography.titleMedium, color = colors.error)
             }
@@ -165,3 +171,26 @@ fun programmerKeys(vm: CalcViewModel): List<List<KeyDef?>> {
         )
     )
 }
+
+@Composable
+private fun Coffee() {
+    val pop = remember { androidx.compose.animation.core.Animatable(0f) }
+    LaunchedEffect(Unit) { pop.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 300f)) }
+    val steam = androidx.compose.animation.core.rememberInfiniteTransition(label = "steam")
+    val rise by steam.animateFloat(0f, 1f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1600, easing = androidx.compose.animation.core.LinearEasing)), label = "rise")
+    val colors = MaterialTheme.colorScheme
+    Box(Modifier.size(72.dp).graphicsLayer { scaleX = pop.value; scaleY = pop.value }, contentAlignment = Alignment.BottomCenter) {
+        androidx.compose.foundation.Canvas(Modifier.size(72.dp)) {
+            // Three wisps rising and fading over the cup.
+            for (k in 0..2) {
+                val t = (rise + k / 3f) % 1f
+                val x = size.width * (0.32f + 0.14f * k)
+                val y = size.height * (0.45f - 0.4f * t)
+                val wobble = kotlin.math.sin((t * 2 * Math.PI).toFloat()) * size.width * 0.04f
+                drawCircle(colors.onSurfaceVariant.copy(alpha = 0.45f * (1f - t)), size.width * (0.04f + 0.04f * t), androidx.compose.ui.geometry.Offset(x + wobble, y))
+            }
+        }
+        Icon(AppIcons.Cafe, contentDescription = "Coffee", tint = Gold, modifier = Modifier.size(40.dp))
+    }
+}
+

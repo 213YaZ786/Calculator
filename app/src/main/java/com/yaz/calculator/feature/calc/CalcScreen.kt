@@ -136,6 +136,20 @@ fun CalcScreen(
         reveal.snapTo(0f)
     }
     val accent = MaterialTheme.colorScheme.primary
+    // The scientific eggs (φ, c, Avogadro), each played once after its "=".
+    val egg = remember { androidx.compose.animation.core.Animatable(0f) }
+    var eggStart by remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+    val eggText = androidx.compose.ui.text.rememberTextMeasurer()
+    androidx.compose.runtime.LaunchedEffect(vm.scienceEggs) {
+        if (vm.scienceEggs == vm.scienceEggsPlayed) return@LaunchedEffect
+        vm.scienceEggsPlayed = vm.scienceEggs
+        val kind = vm.scienceEgg ?: return@LaunchedEffect
+        haptics.done()
+        eggStart = android.os.SystemClock.uptimeMillis()
+        egg.snapTo(0f)
+        egg.animateTo(1f, tween(kind.millis(), easing = androidx.compose.animation.core.LinearEasing))
+        egg.snapTo(0f)
+    }
     val sweep = remember { androidx.compose.animation.core.Animatable(0f) }
     androidx.compose.runtime.LaunchedEffect(vm.advancedOpenings) {
         if (vm.advancedOpenings == vm.advancedPlayed) return@LaunchedEffect
@@ -151,6 +165,13 @@ fun CalcScreen(
             .onGloballyPositioned { origin = it.positionInRoot() }
             .drawWithContent {
                 drawContent()
+                val playing = vm.scienceEgg
+                if (playing != null && egg.value > 0f && egg.value < 1f) {
+                    val area = androidx.compose.ui.geometry.Rect(displayRect.left - origin.x, displayRect.top - origin.y, displayRect.right - origin.x, displayRect.bottom - origin.y)
+                    val result = Offset(area.right - area.width * 0.18f, area.bottom - area.height * 0.3f)
+                    val elapsed = android.os.SystemClock.uptimeMillis() - eggStart
+                    scienceEgg(playing, egg.value, area, result, sparkleRipple, eggStart % 100_000 + elapsed * SparkleRipple.PHASE_PER_MS, eggText, accent)
+                }
                 // The gold sweep of the advanced mode's opening, from the bottom up.
                 if (sweep.value > 0f) {
                     val y = size.height * (1.15f - 1.3f * sweep.value)
@@ -239,7 +260,7 @@ fun CalcScreen(
                         AdvancedScreen(
                             vm, adv, style, wide,
                             keysHeight = if (wide) maxH * 0.62f else minOf(maxH * 0.50f, maxW * 1.35f),
-                            calcDisplay = { m -> Display(vm, style, memoryOn = ledger.memory != null, modifier = m) { ResultActions(vm, style) } },
+                            calcDisplay = { m -> Display(vm, style, memoryOn = ledger.memory != null, modifier = m.onGloballyPositioned { displayRect = it.boundsInRoot() }) { ResultActions(vm, style) } },
                             onQuit = { feelIt(haptics, vm.toggleAdvanced()) },
                             modifier = turned.then(bottom)
                         )

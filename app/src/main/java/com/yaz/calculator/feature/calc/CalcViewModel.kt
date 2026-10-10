@@ -361,7 +361,15 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         evaluated = true
         text.setTextAndPlaceCursorAtEnd(result)
         results++
+        ScienceEgg.of(runCatching { value.crValue().toDouble() }.getOrDefault(Double.NaN))?.let { scienceEgg = it; scienceEggs++ }
     }
+
+    /** The scientific egg last given, and how many: the screen plays each once. */
+    var scienceEgg by mutableStateOf<ScienceEgg?>(null)
+        private set
+    var scienceEggs by mutableIntStateOf(0)
+        private set
+    var scienceEggsPlayed = 0
 
     /** The exact form, when it is not what the digits already say. */
     private fun nice(value: UnifiedReal, written: Written): String {

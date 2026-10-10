@@ -125,7 +125,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /** A line's result as shown: its digits in the app's form, what it counts, and whether it is a total. */
-private data class Shown(val text: String, val measure: Measure?, val total: Boolean, val ready: Boolean = false, val plotted: Plotted? = null)
+private data class Shown(val text: String, val measure: Measure?, val total: Boolean, val ready: Boolean = false, val plotted: Plotted? = null, val fractal: Boolean = false)
 
 /**
  * A sheet: lines typed freely on the left, each line's result on the right,
@@ -145,6 +145,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
     var deleting by remember { mutableStateOf(false) }
     var graphing by remember { mutableStateOf(false) }
+    var fractal by remember { mutableStateOf(false) }
     val haptics = rememberHaptics()
     val clipboard = LocalClipboard.current
     val context = LocalContext.current
@@ -166,6 +167,8 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                     results = values.map { v ->
                         v?.let {
                             when {
+                                it.egg == "Euler" -> Shown("0  ·  Euler", null, false, ready = true)
+                                it.egg == "Mandelbrot" -> Shown("Mandelbrot", null, false, ready = true, fractal = true)
                                 it.curve != null -> Shown("Graph", null, false, ready = true, plotted = Plotted(it.legend.orEmpty(), it.curve))
                                 it.moment != null -> Shown(written(it.moment), null, false, ready = true)
                                 else -> Shown(write(it.value, it.measure), it.measure, it.total)
@@ -242,7 +245,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                     if (shown != null && l != null && start <= l.layoutInput.text.length) {
                                         // Level with its line: the result's baseline on the line's own.
                                         val baseline = l.getLineBaseline(l.getLineForOffset(start.coerceAtMost(l.layoutInput.text.length)))
-                                        if (shown.plotted != null) Row(
+                                        if (shown.plotted != null || shown.fractal) Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             horizontalArrangement = Arrangement.End,
                                             modifier = Modifier
@@ -255,14 +258,14 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                                 }
                                                 .fillMaxWidth()
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .clickable(onClickLabel = "Show the graph") {
+                                                .clickable(onClickLabel = if (shown.fractal) "Show the Mandelbrot set" else "Show the graph") {
                                                     haptics.tick()
-                                                    graphing = true
+                                                    if (shown.fractal) fractal = true else graphing = true
                                                 }
                                         ) {
                                             Icon(AppIcons.ShowChart, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
                                             Spacer(Modifier.width(6.dp))
-                                            Text("Graph", style = LINE.copy(fontWeight = FontWeight.Medium), color = colors.primary)
+                                            Text(shown.text, style = LINE.copy(fontWeight = FontWeight.Medium), color = colors.primary)
                                         } else Text(
                                             shownText(shown, style),
                                             style = LINE.copy(textAlign = TextAlign.End, fontWeight = if (shown.total) FontWeight.Bold else FontWeight.Medium),
@@ -336,6 +339,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     // Every curve of the sheet on one graph (Apple Math Notes' Add to Existing Graph).
     val plotted = results.mapNotNull { it?.plotted }
     if (graphing && plotted.isNotEmpty()) GraphDialog(plotted, style) { graphing = false }
+    if (fractal) MandelbrotDialog { fractal = false }
     if (deleting) {
         ZoneAlertDialog(
             onDismissRequest = { deleting = false },
