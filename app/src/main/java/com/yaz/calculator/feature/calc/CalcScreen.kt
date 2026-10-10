@@ -186,7 +186,8 @@ fun CalcScreen(
         val maxW = maxWidth
         val maxH = maxHeight
         val wide = maxWidth > maxHeight * 1.1f
-        val sideHistory = wide && maxWidth >= 840.dp
+        // The advanced mode takes the whole width.
+        val sideHistory = wide && maxWidth >= 840.dp && !vm.advanced
         val tablet = !wide && maxWidth >= 600.dp
         val sciOpen = tablet || settings.scientificOpen
 
@@ -263,7 +264,8 @@ fun CalcScreen(
                         ) { ResultActions(vm, style) }
                         Spacer(Modifier.height(8.dp))
                         if (wide) {
-                            Row(Modifier.fillMaxWidth().height(maxH * 0.62f).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            // The display keeps its expression, result and actions (about 240 dp); the keys take the rest, near round.
+                    Row(Modifier.fillMaxWidth().height((maxH - padding.calculateTopPadding() - 260.dp).coerceIn(maxH * 0.42f, maxH * 0.7f)).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                 KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
                                 KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
                             }
