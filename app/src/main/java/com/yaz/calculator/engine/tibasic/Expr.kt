@@ -25,6 +25,7 @@ import kotlin.math.truncate
  */
 internal class Expr(private val s: String, private val lookup: (String) -> Double?, private val degrees: Boolean) {
     private var i = 0
+    private var depth = 0
 
     fun parse(): Double {
         if (s.isBlank()) throw Interpreter.Failure("An expression is missing")
@@ -134,6 +135,12 @@ internal class Expr(private val s: String, private val lookup: (String) -> Doubl
     }
 
     private fun atom(): Double {
+        // Nesting bounded: a hostile program cannot overflow the stack.
+        if (++depth > MAX_DEPTH) throw Interpreter.Failure("Too deeply nested")
+        try { return atomInner() } finally { depth-- }
+    }
+
+    private fun atomInner(): Double {
         skip()
         val c = s.getOrNull(i) ?: throw Interpreter.Failure("A value is missing")
         if (c.isDigit() || c == '.') {
@@ -200,5 +207,9 @@ internal class Expr(private val s: String, private val lookup: (String) -> Doubl
         var r = 1.0
         for (n in 2..v.toInt()) r *= n
         return r
+    }
+
+    private companion object {
+        const val MAX_DEPTH = 200
     }
 }

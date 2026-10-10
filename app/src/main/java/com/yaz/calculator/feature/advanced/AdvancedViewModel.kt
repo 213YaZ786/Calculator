@@ -257,6 +257,8 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
             } catch (_: kotlinx.coroutines.CancellationException) {
             } catch (e: Exception) {
                 console += "ERR"
+            } catch (_: StackOverflowError) {
+                console += "ERR: Too deeply nested"
             }
             asking = null; choosing = null; paused = false
             finished = true

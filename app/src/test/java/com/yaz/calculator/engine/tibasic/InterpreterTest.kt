@@ -69,4 +69,9 @@ class InterpreterTest {
     fun endlessLoopsStop() {
         runBlocking { Interpreter("Lbl A\nGoto A", Console(), degrees = false, maxSteps = 10_000).run() }
     }
+
+    @Test(expected = Interpreter.Failure::class)
+    fun deepNestingStops() {
+        runBlocking { Interpreter("(".repeat(5000) + "1→A", Console(), degrees = false).run() }
+    }
 }
