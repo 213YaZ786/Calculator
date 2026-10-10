@@ -3,8 +3,6 @@ package com.yaz.calculator.feature.calc
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
-import androidx.compose.foundation.draganddrop.dragAndDropTarget
-import androidx.compose.foundation.draganddrop.dragAndDropSource
 import com.yaz.calculator.ui.component.sink
 import android.content.ClipData
 import androidx.compose.animation.AnimatedContent
@@ -109,7 +107,7 @@ import kotlinx.coroutines.launch
  */
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: Modifier = Modifier, tape: Boolean = true, actions: @Composable () -> Unit) {
+fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: Modifier = Modifier, actions: @Composable () -> Unit) {
     val colors = MaterialTheme.colorScheme
     val measurer = rememberTextMeasurer()
     val density = LocalDensity.current
@@ -119,17 +117,7 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
     val output = remember(style, refs) { OutputTransformation { showIn(this, style) { refs[it] ?: "…" } } }
     val input = remember(style) { InputTransformation { cleanIn(this, style) } }
     val clipboard = LocalClipboard.current
-    val dropHaptics = com.yaz.calculator.ui.component.rememberHaptics()
-    val dropTarget = remember(vm) {
-        object : androidx.compose.ui.draganddrop.DragAndDropTarget {
-            override fun onDrop(event: androidx.compose.ui.draganddrop.DragAndDropEvent): Boolean {
-                val at = event.toAndroidDragEvent().clipData?.getItemAt(0)?.text?.toString()?.toLongOrNull() ?: return false
-                val entry = vm.entries.value.entries.firstOrNull { it.at == at } ?: return false
-                feelIt(dropHaptics, vm.takeResult(entry))
-                return true
-            }
-        }
-    }
+    val swipeHaptics = com.yaz.calculator.ui.component.rememberHaptics()
     val spelling = remember(style, clipboard) { SpelledClipboard(clipboard) { style.show(vm.spelled(it)) } }
 
     // A swipe across the display deletes the last character, one a swipe (Apple's Calculator);
@@ -152,7 +140,7 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                     swipeScope.launch { nudge.snapTo((travel * 0.3f).coerceIn(-reach / 2f, reach / 2f)) }
                     if (!done && kotlin.math.abs(travel) > reach) {
                         done = true
-                        feelIt(dropHaptics, vm.backspace())
+                        feelIt(swipeHaptics, vm.backspace())
                     }
                 }
             }
@@ -175,16 +163,6 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
         }
         // The actions stay under the result; the lines above them scroll when digits are unfolded.
         Column(Modifier.align(Alignment.BottomEnd).fillMaxWidth(), horizontalAlignment = Alignment.End) {
-        // The tape: the last results above the expression, as a printing calculator's
-        // roll (PCalc, Calcbot), in the room the expression leaves; a tap takes one in
-        // where the cursor is, or it is dragged into the expression (Tydlig), exact.
-        Column(
-            Modifier.weight(1f, fill = false).fillMaxWidth().verticalScroll(rememberScrollState(), reverseScrolling = true),
-            horizontalAlignment = Alignment.End
-        ) {
-            // Not when the history stands beside: it would show the same lines twice.
-            if (tape) Tape(vm, style)
-        }
         Column(
             Modifier.fillMaxWidth().heightIn(max = room - ACTIONS_ROOM).verticalScroll(rememberScrollState(), reverseScrolling = true),
             horizontalAlignment = Alignment.End
@@ -230,11 +208,6 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                             .heightIn(min = with(density) { size.toDp() } * 1.2f)
                             .graphicsLayer { translationX = nudge.value }
                             .focusRequester(focus)
-                            // A result dragged from the tape lands where the cursor is.
-                            .dragAndDropTarget(
-                                shouldStartDragAndDrop = { e -> e.toAndroidDragEvent().clipDescription?.hasMimeType(TAPE_MIME) == true },
-                                target = dropTarget
-                            )
                             .semantics { contentDescription = "Expression" }
                             .onPreviewKeyEvent { e ->
                                 if (e.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
@@ -400,93 +373,3 @@ internal val RESULT_SIZE = 34.sp
 private val ACTIONS_ROOM = 56.dp
 private val MAX_SIZE = 64.sp
 private val MIN_SIZE = 34.sp
-
-/** The last results, oldest at the top, each a chip to take back. */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
-@Composable
-private fun Tape(vm: CalcViewModel, style: NumberStyle) {
-    val data by vm.entries.collectAsState()
-    val haptics = com.yaz.calculator.ui.component.rememberHaptics()
-    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
-    val labelStyle = MaterialTheme.typography.labelLarge
-    val lifted = MaterialTheme.colorScheme.primaryContainer
-    val liftedInk = MaterialTheme.colorScheme.onPrimaryContainer
-    // Just after "=", the newest line is on screen already, as the result and its expression.
-    val lines = data.entries.let { if (vm.evaluated) it.dropLast(1) else it }.takeLast(TAPE_LINES)
-    lines.forEach { entry ->
-        androidx.compose.runtime.key(entry.at, entry.expression) {
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    style.show(vm.spelled(entry.expression)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false).padding(end = 8.dp)
-                )
-                ZoneSurface(
-                    shape = CircleShape,
-                    modifier = Modifier
-                        .minimumInteractiveComponentSize()
-                        .sink(0.9f)
-                        .semantics(mergeDescendants = true) {
-                            role = androidx.compose.ui.semantics.Role.Button
-                            onClick { feelIt(haptics, vm.takeResult(entry)); true }
-                        }
-                        .quickTap { feelIt(haptics, vm.takeResult(entry)) }
-                        // The chip under the finger drawn apart: Compose's default shadow keeps the
-                        // chip's first drawing in place of the chip itself (wrong at night).
-                        .dragAndDropSource(
-                            drawDragDecoration = {
-                                drawRoundRect(lifted, cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.height / 2f))
-                                val label = measurer.measure("= " + style.show(entry.shown), labelStyle.copy(color = liftedInk))
-                                drawText(label, topLeft = androidx.compose.ui.geometry.Offset((size.width - label.size.width) / 2f, (size.height - label.size.height) / 2f))
-                            }
-                        ) { _ ->
-                            haptics.firm()
-                            androidx.compose.ui.draganddrop.DragAndDropTransferData(
-                                // Not text, so the field's own drop leaves it to ours, which types it as a key would.
-                                android.content.ClipData(
-                                    android.content.ClipDescription(TAPE_LABEL, arrayOf(TAPE_MIME)),
-                                    android.content.ClipData.Item(entry.at.toString())
-                                )
-                            )
-                        }
-                ) {
-                    Text(
-                        "= " + style.show(entry.shown),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-/**
- * A tap that leaves the long press to the drag beside it: the drag source takes the touch
- * for itself, so the tap is read before it, on the initial pass.
- */
-private fun Modifier.quickTap(onTap: () -> Unit): Modifier = pointerInput(onTap) {
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-        val up = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
-            waitForUpOrCancellation(PointerEventPass.Initial)
-        }
-        if (up != null && (up.position - down.position).getDistance() < viewConfiguration.touchSlop) onTap()
-    }
-}
-
-/** How many past results the tape shows; older ones are in the history. */
-private const val TAPE_LINES = 12
-
-/** The label of a result dragged from the tape, its entry's time as the text. */
-private const val TAPE_LABEL = "calculator-tape"
-private const val TAPE_MIME = "application/vnd.yaz.calculator.tape"
