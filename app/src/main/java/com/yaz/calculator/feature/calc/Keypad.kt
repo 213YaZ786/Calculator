@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -95,7 +97,8 @@ fun KeyGrid(rows: List<List<KeyDef?>>, modifier: Modifier = Modifier, gap: Dp = 
                 Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(gap)) {
                     row.forEachIndexed { c, key ->
                         Box(Modifier.weight(1f).fillMaxSize(), contentAlignment = Alignment.Center) {
-                            if (key != null) CalcKey(key, side, firstIndex + r * columns + c, Modifier.fillMaxSize())
+                            // Never taller than wide: a disc in a tall cell, a pill in a wide one.
+                            if (key != null) CalcKey(key, side, firstIndex + r * columns + c, Modifier.fillMaxWidth().height(min(cellH, cellW)))
                         }
                     }
                 }
