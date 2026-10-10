@@ -21,7 +21,6 @@ import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -59,9 +58,8 @@ fun LoadingMark(
         Key(ImageBitmap.imageResource(R.drawable.keys_mark_key3), ImageBitmap.imageResource(R.drawable.keys_mark_key3_shine), ImageBitmap.imageResource(R.drawable.keys_mark_key3_sign), 0.5078f, 0.5312f, 0.6719f, 0.6906f)
     )
     val colors = MaterialTheme.colorScheme
-    val night = colors.background.luminance() < 0.5f
-    // The disc keeps the icon's deep tone; by night primary is a pale one.
-    val tone = if (night) colors.inversePrimary else colors.primary
+    // The launcher icon's own tone (ic_launcher_disc), so the mark is the icon by day and by night.
+    val tone = androidx.compose.ui.res.colorResource(android.R.color.system_accent1_500)
     val tint = remember(tone) { ColorFilter.tint(tone, BlendMode.Modulate) }
     val transition = rememberInfiniteTransition(label = "typing")
     val clock by transition.animateFloat(
