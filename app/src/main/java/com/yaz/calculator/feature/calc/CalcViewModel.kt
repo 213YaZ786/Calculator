@@ -144,6 +144,9 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         return Feel.DONE
     }
 
+    /** The result shown in words under it, until the next calculation. */
+    var inWords by mutableStateOf(false)
+
     /** What a clear took away, offered back for a few seconds (PCalc, Kalkyl): Undo, then Redo. */
     var offer by mutableStateOf<Offer?>(null)
         private set

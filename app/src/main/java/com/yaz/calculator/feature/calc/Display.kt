@@ -39,6 +39,9 @@ import androidx.compose.foundation.text.input.insert
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.ui.text.drawText
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
@@ -249,18 +252,37 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                 vm.evaluated -> vm.exactForm?.let { "= " + style.show(it) }
                 else -> vm.live?.let { style.show(it) }
             }
-            AnimatedContent(targetState = line, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "live") { text ->
-                Text(
-                    text.orEmpty(),
-                    style = TextStyle(fontSize = RESULT_SIZE, textAlign = TextAlign.End),
-                    color = if (error != null) colors.error else colors.onSurfaceVariant,
-                    maxLines = 3,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 44.dp)
-                )
+            // The result in words (Calzy), asked from its actions: in the line under the
+            // result when that line is empty, under it otherwise.
+            val words = if (vm.evaluated && vm.inWords) remember(vm.text.text, vm.shown.toMap()) { vm.resultText()?.let(::inWords) } else null
+            Box(Modifier.fillMaxWidth().heightIn(min = 44.dp), contentAlignment = Alignment.CenterEnd) {
+                AnimatedContent(targetState = line, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "live") { text ->
+                    Text(
+                        text.orEmpty(),
+                        style = TextStyle(fontSize = RESULT_SIZE, textAlign = TextAlign.End),
+                        color = if (error != null) colors.error else colors.onSurfaceVariant,
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+                if (line == null) Words(words)
             }
+            if (line != null) Words(words)
         }
         actions()
         }
+    }
+}
+
+@Composable
+private fun Words(words: String?) {
+    AnimatedVisibility(words != null, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+        Text(
+            words.orEmpty(),
+            style = MaterialTheme.typography.titleMedium.copy(textAlign = TextAlign.End),
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp)
+        )
     }
 }
 

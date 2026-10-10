@@ -230,6 +230,7 @@ private fun ResultActions(vm: CalcViewModel, style: NumberStyle) {
     val menu = rememberPillMenu()
     val ledger by vm.entries.collectAsState()
     val result = if (vm.evaluated) vm.resultText() else null
+    LaunchedEffect(vm.evaluated) { if (!vm.evaluated) vm.inWords = false }
     val offer = vm.offer
     // The offer stays a few seconds, and goes as soon as the user types on.
     LaunchedEffect(offer) {
@@ -259,6 +260,12 @@ private fun ResultActions(vm: CalcViewModel, style: NumberStyle) {
                     haptics.tick()
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, style.show(vm.spelled(vm.previous.orEmpty())) + " = " + text)
                     runCatching { context.startActivity(Intent.createChooser(send, null).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                }
+            }
+            if (result != null && inWords(result) != null) {
+                ResultAction(AppIcons.Abc, if (vm.inWords) "Hide the words" else "In words") {
+                    haptics.tick()
+                    vm.inWords = !vm.inWords
                 }
             }
             if (vm.unfoldable) ResultAction(AppIcons.ExpandMore, "More digits") { if (vm.unfold()) haptics.tick() }
