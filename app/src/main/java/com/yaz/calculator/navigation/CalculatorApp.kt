@@ -1,5 +1,9 @@
 package com.yaz.calculator.navigation
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Column
 import com.yaz.calculator.ui.component.sink
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -187,35 +191,55 @@ private fun MainScreen(nav: NavHostController, style: NumberStyle, mode: Mode, o
 private fun ModeSwitch(mode: Mode, onMode: (Mode) -> Unit) {
     val haptics = rememberHaptics()
     val accent = LocalGlass.current?.accentTint ?: MaterialTheme.colorScheme.secondaryContainer
-    FloatingPane(shape = CircleShape) {
-        Row(Modifier.padding(4.dp).animateContentSize(), horizontalArrangement = Arrangement.spacedBy(2.dp), verticalAlignment = Alignment.CenterVertically) {
-            Mode.entries.forEach { m ->
-                val on = m == mode
-                Row(
-                    Modifier
-                        .height(40.dp)
-                        .sink(0.9f)
-                        .clip(CircleShape)
-                        .then(if (on) Modifier.background(accent, CircleShape) else Modifier)
-                        .clickable(role = Role.Tab) {
-                            if (!on) {
-                                haptics.firm()
-                                onMode(m)
+    // The chosen place's drop of accent slides from one to the other.
+    val at by androidx.compose.animation.core.animateFloatAsState(
+        Mode.entries.indexOf(mode).toFloat(),
+        androidx.compose.animation.core.spring(dampingRatio = 0.7f, stiffness = 500f),
+        label = "tab"
+    )
+    FloatingPane(shape = CircleShape, modifier = Modifier.fillMaxWidth()) {
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(4.dp)) {
+            val width = maxWidth / Mode.entries.size
+            Box(
+                Modifier
+                    .offset(x = width * at)
+                    .width(width)
+                    .height(TAB_HEIGHT)
+                    .background(accent, CircleShape)
+            )
+            Row(Modifier.fillMaxWidth()) {
+                Mode.entries.forEach { m ->
+                    val on = m == mode
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .height(TAB_HEIGHT)
+                            .sink(0.92f)
+                            .clip(CircleShape)
+                            .clickable(role = Role.Tab) {
+                                if (!on) {
+                                    haptics.firm()
+                                    onMode(m)
+                                }
                             }
-                        }
-                        .semantics { contentDescription = m.label }
-                        .padding(horizontal = if (on) 14.dp else 11.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(m.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                    if (on) {
-                        Box(Modifier.widthIn(max = 120.dp)) {
-                            Text(m.label, style = MaterialTheme.typography.labelLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+                            .semantics { contentDescription = m.label },
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(m.icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Text(
+                            m.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (on) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     }
                 }
             }
         }
     }
 }
+
+/** The tabs' height: the place switch is reached at a glance and a thumb. */
+private val TAB_HEIGHT = 52.dp
