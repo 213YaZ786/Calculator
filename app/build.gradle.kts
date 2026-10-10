@@ -87,6 +87,10 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.koin.compose)
 
+    // Numerical analysis for the advanced mode (roots, extrema, integrals), Apache 2.0, pure Java.
+    implementation("org.hipparchus:hipparchus-core:4.0.3")
+    implementation("org.hipparchus:hipparchus-optim:4.0.3")
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
 }

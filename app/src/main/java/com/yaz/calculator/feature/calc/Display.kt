@@ -359,6 +359,8 @@ internal fun showIn(buffer: androidx.compose.foundation.text.input.TextFieldBuff
             Sym.isRef(c) -> buffer.replace(i, i + 1, style.show(ref(c)))
             c == Sym.POINT -> buffer.replace(i, i + 1, style.point.toString())
             c == Sym.EXP -> buffer.replace(i, i + 1, "E")
+            // min(2,5) where the decimal mark is a point, min(2;5) where it is a comma.
+            c == Sym.ARG -> buffer.replace(i, i + 1, if (style.point == ',') ";" else ",")
         }
         while (g >= 0 && groups[g] == i) {
             buffer.insert(i, style.group.toString())

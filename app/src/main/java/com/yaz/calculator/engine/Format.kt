@@ -135,7 +135,13 @@ class NumberStyle(
         var g = 0
         for ((i, c) in text.withIndex()) {
             while (g < groups.size && groups[g] == i) { out.append(group); g++ }
-            out.append(if (c == Sym.POINT) point else c)
+            out.append(
+                when (c) {
+                    Sym.POINT -> point
+                    Sym.ARG -> if (point == ',') ';' else ','
+                    else -> c
+                }
+            )
         }
         return out.toString()
     }
@@ -148,6 +154,7 @@ class NumberStyle(
             when {
                 c == point -> out.append(Sym.POINT)
                 betweenDigits && (c == localGroup || c == ' ' || c == '\u00A0' || c == '\u202F' || c == '\'' || c == '’') -> Unit
+                c == ';' -> out.append(Sym.ARG)
                 c == '.' || c == ',' || c == '٫' -> out.append(Sym.POINT)
                 c == '-' || c == '–' -> out.append(Sym.MINUS)
                 c == '*' || c == '·' || c == '⋅' -> out.append(Sym.TIMES)

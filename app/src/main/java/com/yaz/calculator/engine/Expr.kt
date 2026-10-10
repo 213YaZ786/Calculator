@@ -29,8 +29,23 @@ object Sym {
     const val OPEN = '('
     const val CLOSE = ')'
 
-    /** Functions, each with its opening parenthesis; the longest first, so sin⁻¹( is not read as sin. */
-    val FUNCTIONS = listOf("sin⁻¹(", "cos⁻¹(", "tan⁻¹(", "sin(", "cos(", "tan(", "ln(", "log(", "exp(")
+    /** Between a function's arguments: min(2,5). Shown as ";" where the decimal mark is a comma. */
+    const val ARG = ','
+
+    /**
+     * Functions, each with its opening parenthesis; the longest first, so sin⁻¹( is not read as sin.
+     * After the scientific keys, the TI-82's MATH, NUM, PROB and hyperbolic menus.
+     */
+    val FUNCTIONS = listOf(
+        "sinh⁻¹(", "cosh⁻¹(", "tanh⁻¹(", "sin⁻¹(", "cos⁻¹(", "tan⁻¹(", "sinh(", "cosh(", "tanh(",
+        "sin(", "cos(", "tan(", "ln(", "log(", "exp(",
+        "logBASE(", "abs(", "round(", "iPart(", "fPart(", "int(", "min(", "max(", "gcd(", "lcm(",
+        "remainder(", "∛(", "root(", "nPr(", "nCr(", "randInt(", "rand(",
+        "nDeriv(", "fnInt(", "Σ(", "fMin(", "fMax("
+    )
+
+    /** The functions whose first argument is an expression in x, worked out numerically. */
+    val CALCULUS = listOf("nDeriv(", "fnInt(", "Σ(", "fMin(", "fMax(")
 
     val BINARY = setOf(PLUS, MINUS, TIMES, DIVIDE, POWER)
 
@@ -68,7 +83,7 @@ class Calc(
 
     /** The exact value of [text], or a CalcException. Slow cases are cut by the caller's thread. */
     fun evaluate(text: CharSequence, degrees: Boolean): UnifiedReal {
-        val tokens = tokens(text)
+        val tokens = tokens(text, degrees)
         val end = significantEnd(tokens)
         if (end == 0) throw CalcException(CalcError.SYNTAX)
         return Parser(tokens, end, degrees).parse()
@@ -76,6 +91,7 @@ class Calc(
 
     /** Whether [text] is worth a result under it: more than a number on its own. */
     fun interesting(text: CharSequence): Boolean {
+        if (Sym.CALCULUS.any { text.contains(it) }) return true
         val tokens = runCatching { tokens(text) }.getOrNull() ?: return false
         val end = significantEnd(tokens)
         var first = 0
@@ -98,7 +114,7 @@ class Calc(
         return end
     }
 
-    internal fun tokens(text: CharSequence): List<Token> {
+    internal fun tokens(text: CharSequence, degrees: Boolean = false): List<Token> {
         val out = ArrayList<Token>()
         var i = 0
         while (i < text.length) {
@@ -125,6 +141,15 @@ class Calc(
                 }
                 c == Sym.PI -> { out += Num(UnifiedReal.PI, literal = false); i++ }
                 else -> {
+                    // nDeriv(, fnInt(, Σ(, fMin(, fMax(: their expression in x is worked out here, whole.
+                    val calculus = Sym.CALCULUS.firstOrNull { f -> text.startsWith(f, i) }
+                    if (calculus != null) {
+                        val close = Calculus.close(text, i + calculus.length)
+                        val inner = text.substring(i + calculus.length, close)
+                        out += Num(Calculus.value(calculus, inner, degrees, this), literal = false)
+                        i = if (close < text.length) close + 1 else close
+                        continue
+                    }
                     val function = Sym.functionAt(text, i)
                     if (function != null) {
                         out += Fn(function)
@@ -168,9 +193,17 @@ class Calc(
                 is Num -> { pos++; token.value }
                 is Fn -> {
                     pos++
-                    val arg = expr()
+                    val args = ArrayList<UnifiedReal>()
+                    // rand() takes nothing.
+                    if (!(isOp(pos, Sym.CLOSE) || pos >= end)) {
+                        args += expr()
+                        while (isOp(pos, Sym.ARG)) {
+                            pos++
+                            args += expr()
+                        }
+                    }
                     if (isOp(pos, Sym.CLOSE)) pos++
-                    apply(token.name, arg)
+                    Functions.apply(token.name, args, degrees) ?: apply(token.name, args.singleOrNull() ?: throw CalcException(CalcError.SYNTAX))
                 }
                 is Op -> when (token.c) {
                     Sym.SQRT -> {
@@ -227,7 +260,7 @@ class Calc(
             if (pos >= end) return false
             val op = t[pos] as? Op ?: return true
             return op.c !in Sym.BINARY && op.c != Sym.FACT && op.c != Sym.CLOSE &&
-                op.c != Sym.PERCENT && op.c != Sym.SQUARE
+                op.c != Sym.PERCENT && op.c != Sym.SQUARE && op.c != Sym.ARG
         }
 
         private fun term(): UnifiedReal {
@@ -307,7 +340,7 @@ class Calc(
     companion object {
         private val OPERATORS = setOf(
             Sym.PLUS, Sym.MINUS, Sym.TIMES, Sym.DIVIDE, Sym.POWER, Sym.SQRT,
-            Sym.FACT, Sym.PERCENT, Sym.SQUARE, Sym.OPEN, Sym.CLOSE
+            Sym.FACT, Sym.PERCENT, Sym.SQUARE, Sym.OPEN, Sym.CLOSE, Sym.ARG
         )
         private val HUNDREDTH: UnifiedReal = UnifiedReal(100).inverse()
         private val HALF_TURN = UnifiedReal(180)

@@ -13,6 +13,17 @@ import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
+import kotlin.math.abs
+import kotlin.math.acosh
+import kotlin.math.asinh
+import kotlin.math.atanh
+import kotlin.math.cbrt
+import kotlin.math.cosh
+import kotlin.math.floor
+import kotlin.math.round
+import kotlin.math.sinh
+import kotlin.math.tanh
+import kotlin.math.truncate
 
 /**
  * An expression in x, read once and worked out in doubles, fast enough to
@@ -122,10 +133,15 @@ class Curve private constructor(private val root: Node) {
                 c == Sym.PI -> { i++; return Node { PI } }
                 c.isLetter() -> {
                     Sym.functionAt(s, i)?.let { f ->
+                        if (f in Sym.CALCULUS) error("calculus")
                         i += f.length
-                        val arg = sum()
+                        val args = ArrayList<Node>()
+                        if (peek() != ')' && peek() != null) {
+                            args += sum()
+                            while (peek() == Sym.ARG) { i++; args += sum() }
+                        }
                         if (peek() == ')') i++
-                        return function(f.dropLast(1), arg)
+                        return function(f.dropLast(1), args)
                     }
                     val start = i
                     while (i < s.length && (s[i].isLetterOrDigit() || s[i] == '_')) i++
@@ -147,18 +163,38 @@ class Curve private constructor(private val root: Node) {
             else -> names(name)?.let { v -> Node { v } }
         }
 
-        private fun function(name: String, a: Node): Node {
+        private fun function(name: String, args: List<Node>): Node {
             val k = if (degrees) PI / 180 else 1.0
+            fun one(): Node = args.singleOrNull() ?: error("arguments")
+            fun two(): Pair<Node, Node> = if (args.size == 2) args[0] to args[1] else error("arguments")
             return when (name) {
-                "sin" -> Node { sin(a.at(it) * k) }
-                "cos" -> Node { cos(a.at(it) * k) }
-                "tan" -> Node { tan(a.at(it) * k) }
-                "sin⁻¹" -> Node { asin(a.at(it)) / k }
-                "cos⁻¹" -> Node { acos(a.at(it)) / k }
-                "tan⁻¹" -> Node { atan(a.at(it)) / k }
-                "ln" -> Node { ln(a.at(it)) }
-                "log" -> Node { log10(a.at(it)) }
-                "exp" -> Node { exp(a.at(it)) }
+                "sin" -> one().let { a -> Node { sin(a.at(it) * k) } }
+                "cos" -> one().let { a -> Node { cos(a.at(it) * k) } }
+                "tan" -> one().let { a -> Node { tan(a.at(it) * k) } }
+                "sin⁻¹" -> one().let { a -> Node { asin(a.at(it)) / k } }
+                "cos⁻¹" -> one().let { a -> Node { acos(a.at(it)) / k } }
+                "tan⁻¹" -> one().let { a -> Node { atan(a.at(it)) / k } }
+                "sinh" -> one().let { a -> Node { sinh(a.at(it)) } }
+                "cosh" -> one().let { a -> Node { cosh(a.at(it)) } }
+                "tanh" -> one().let { a -> Node { tanh(a.at(it)) } }
+                "sinh⁻¹" -> one().let { a -> Node { asinh(a.at(it)) } }
+                "cosh⁻¹" -> one().let { a -> Node { acosh(a.at(it)) } }
+                "tanh⁻¹" -> one().let { a -> Node { atanh(a.at(it)) } }
+                "ln" -> one().let { a -> Node { ln(a.at(it)) } }
+                "log" -> one().let { a -> Node { log10(a.at(it)) } }
+                "exp" -> one().let { a -> Node { exp(a.at(it)) } }
+                "abs" -> one().let { a -> Node { abs(a.at(it)) } }
+                "int" -> one().let { a -> Node { floor(a.at(it)) } }
+                "iPart" -> one().let { a -> Node { truncate(a.at(it)) } }
+                "fPart" -> one().let { a -> Node { a.at(it).let { y -> y - truncate(y) } } }
+                "round" -> if (args.size == 1) args[0].let { a -> Node { round(a.at(it)) } } else two().let { (a, n) ->
+                    Node { 10.0.pow(n.at(it)).let { p -> round(a.at(it) * p) / p } }
+                }
+                "∛" -> one().let { a -> Node { cbrt(a.at(it)) } }
+                "root" -> two().let { (a, n) -> Node { a.at(it).let { y -> n.at(it).let { m -> if (y < 0 && m % 2.0 == 1.0) -(-y).pow(1 / m) else y.pow(1 / m) } } } }
+                "logBASE" -> two().let { (a, b) -> Node { ln(a.at(it)) / ln(b.at(it)) } }
+                "min" -> args.ifEmpty { error("arguments") }.let { l -> Node { x -> l.minOf { n -> n.at(x) } } }
+                "max" -> args.ifEmpty { error("arguments") }.let { l -> Node { x -> l.maxOf { n -> n.at(x) } } }
                 else -> error("function")
             }
         }
