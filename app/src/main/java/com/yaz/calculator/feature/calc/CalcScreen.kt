@@ -153,7 +153,7 @@ fun CalcScreen(
             ) {
                 // Drawn down from the display, the history comes, as on a paper roll.
                 var pulled by remember { mutableFloatStateOf(0f) }
-                Display(
+                if (vm.programmer) ProgrammerDisplay(vm, Modifier.weight(1f).fillMaxWidth()) else Display(
                     vm,
                     style,
                     memoryOn = ledger.memory != null,
@@ -177,7 +177,13 @@ fun CalcScreen(
                         }
                 ) { ResultActions(vm, style) }
                 Spacer(Modifier.height(8.dp))
-                if (wide) {
+                if (vm.programmer) {
+                    // The validated layout B: the bitwise band over a grid of five columns.
+                    val keyHeight = if (wide) maxH * 0.5f else minOf(maxH * 0.46f, maxW * 1.25f)
+                    KeyGrid(programmerBand(vm), Modifier.fillMaxWidth().height(keyHeight / 5 * 0.72f), gap = 8.dp)
+                    Spacer(Modifier.height(10.dp))
+                    KeyGrid(programmerKeys(vm), Modifier.fillMaxWidth().height(keyHeight).then(bottom), gap = 8.dp, firstIndex = 6)
+                } else if (wide) {
                     Row(Modifier.fillMaxWidth().height(maxH * 0.62f).then(bottom), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         KeyGrid(wideScientific(vm), Modifier.weight(3f).fillMaxHeight(), gap = 8.dp)
                         KeyGrid(basic, Modifier.weight(4f).fillMaxHeight(), gap = 8.dp, firstIndex = 15)
@@ -327,7 +333,7 @@ private fun scientific(vm: CalcViewModel, open: Boolean, showFold: Boolean, fold
             fn(vm, inv, "sin", "sin⁻¹"),
             fn(vm, inv, "cos", "cos⁻¹"),
             fn(vm, inv, "tan", "tan⁻¹"),
-            KeyDef("(", KeyKind.FUNCTION, "Open parenthesis") { vm.piece("(") }
+            KeyDef("HEX", KeyKind.TOGGLE, "Programmer") { vm.toggleProgrammer() }
         ),
         listOf(
             KeyDef("INV", KeyKind.TOGGLE, "Inverse functions", on = inv) { vm.inverse = !vm.inverse; Feel.TICK },
@@ -362,7 +368,7 @@ private fun wideScientific(vm: CalcViewModel): List<List<KeyDef?>> {
         listOf(
             KeyDef("(", KeyKind.FUNCTION, "Open parenthesis") { vm.piece("(") },
             KeyDef(")", KeyKind.FUNCTION, "Close parenthesis") { vm.suffix(Sym.CLOSE) },
-            KeyDef("x²", KeyKind.FUNCTION, "Square") { vm.suffix(Sym.SQUARE) }
+            KeyDef("HEX", KeyKind.TOGGLE, "Programmer") { vm.toggleProgrammer() }
         )
     )
 }

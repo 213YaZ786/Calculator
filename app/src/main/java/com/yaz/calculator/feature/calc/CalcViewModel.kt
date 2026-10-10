@@ -17,6 +17,9 @@ import com.yaz.calculator.data.history.Stored
 import com.yaz.calculator.data.settings.SettingsStore
 import com.yaz.calculator.engine.Calc
 import com.yaz.calculator.engine.CalcError
+import com.yaz.calculator.engine.Base
+import com.yaz.calculator.engine.ProgExpr
+import com.yaz.calculator.engine.CalcException
 import com.yaz.calculator.engine.Format
 import com.yaz.calculator.engine.Outcome
 import com.yaz.calculator.engine.Sym
@@ -142,6 +145,81 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
         clearFrom = from
         reveals++
         return Feel.DONE
+    }
+
+    // ---------- programmer (Windows Calculator's Programmer mode) ----------
+
+    /** The programmer's keys and display in place of the calculator's. */
+    var programmer by mutableStateOf(false)
+        private set
+
+    /** The base numbers are typed in; the others show the same value. */
+    var base by mutableStateOf(Base.DEC)
+
+    var prog by mutableStateOf(ProgExpr())
+        private set
+
+    var progError by mutableStateOf<CalcError?>(null)
+        private set
+
+    /** Right after "=": the next digit starts again. */
+    private var progDone = false
+
+    fun toggleProgrammer(): Feel {
+        programmer = !programmer
+        return Feel.TICK
+    }
+
+    fun progDigit(d: Int): Feel {
+        val from = if (progDone) ProgExpr() else prog
+        val next = from.digit(d, base) ?: return Feel.REJECT
+        progDone = false
+        progError = null
+        prog = next
+        return Feel.TICK
+    }
+
+    fun progOperator(op: String): Feel {
+        val next = prog.operator(op) ?: return Feel.REJECT
+        progDone = false
+        progError = null
+        prog = next
+        return Feel.TICK
+    }
+
+    fun progParenthesis(): Feel {
+        if (progDone) prog = ProgExpr()
+        progDone = false
+        prog = prog.parenthesis()
+        return Feel.TICK
+    }
+
+    fun progBackspace(): Feel {
+        progDone = false
+        progError = null
+        prog = prog.backspace(base) ?: return Feel.REJECT
+        return Feel.TICK
+    }
+
+    fun progClear(): Feel {
+        if (prog.tokens.isEmpty() && progError == null) return Feel.REJECT
+        prog = ProgExpr()
+        progError = null
+        progDone = false
+        return Feel.DONE
+    }
+
+    fun progEquals(): Feel {
+        if (prog.tokens.size < 2) return Feel.REJECT
+        return try {
+            val v = prog.value() ?: return Feel.REJECT
+            prog = ProgExpr(listOf(ProgExpr.Tok.Num(v)))
+            progDone = true
+            Feel.DONE
+        } catch (e: CalcException) {
+            progError = e.error
+            Feel.REJECT
+        }
     }
 
     /** The result shown in words under it, until the next calculation. */

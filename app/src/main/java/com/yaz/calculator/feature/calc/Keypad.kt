@@ -66,6 +66,8 @@ class KeyDef(
     val icon: ImageVector? = null,
     /** A toggle switched on (DEG, INV): washed in the accent. */
     val on: Boolean = false,
+    /** A key that does nothing here (8 in octal): faded, it shakes when pressed. */
+    val dim: Boolean = false,
     /** A long press, given the key's centre in the window (⌫ clears all). */
     val longPress: ((androidx.compose.ui.geometry.Offset) -> Feel)? = null,
     /** In place of [press] when the key needs its centre in the window (AC). */
@@ -142,7 +144,7 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
                 val s = (0.4f + 0.6f * appear.value) * sink * (1f + if (key.kind == KeyKind.DIGIT) kick.value * 0.08f else 0f)
                 scaleX = s
                 scaleY = s
-                alpha = appear.value.coerceIn(0f, 1f)
+                alpha = appear.value.coerceIn(0f, 1f) * if (key.dim) 0.38f else 1f
                 rotationZ = when (key.kind) {
                     KeyKind.OPERATOR -> kick.value * 14f
                     else -> 0f
