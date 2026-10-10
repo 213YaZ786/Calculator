@@ -83,6 +83,8 @@ internal fun num(symbol: String, fr: String, en: String, unit: String = "", whol
 internal fun fn(symbol: String, fr: String, en: String) = Field(symbol, Words(fr, en), kind = FieldKind.FUNCTION)
 internal fun list(symbol: String, fr: String, en: String, optional: Boolean = false) = Field(symbol, Words(fr, en), kind = FieldKind.LIST, optional = optional)
 internal fun show(v: Double) = Solve.show(v)
+/** Four significant digits, for the numbers inside a step. */
+internal fun brief(v: Double): String = if (v == 0.0 || !v.isFinite()) show(v) else show(java.math.BigDecimal(v).round(java.math.MathContext(4)).toDouble())
 internal fun res(text: String) = Line(text, result = true)
 internal fun stp(text: String) = Line(text)
 internal fun lines(vararg l: Line) = Outcome(l.toList())

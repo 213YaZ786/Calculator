@@ -13,7 +13,7 @@ enum class Subject(val title: Words) {
     MATHS(Words("Maths", "Maths")),
     ANALYSIS(Words("Analyse", "Calculus")),
     STATS(Words("Probabilités et statistiques", "Probability and statistics")),
-    GEOMETRY(Words("Géométrie dans l'espace", "Geometry in space")),
+    GEOMETRY(Words("Vecteurs et géométrie", "Vectors and geometry")),
     EXPERT(Words("Maths expertes", "Advanced maths")),
     PHYSICS(Words("Physique", "Physics")),
     CHEMISTRY(Words("Chimie", "Chemistry"))

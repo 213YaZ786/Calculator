@@ -61,10 +61,11 @@ import kotlinx.coroutines.launch
 fun SceneView(scene: Scene, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 320.dp) {
     val haptics = rememberHaptics()
     val scope = rememberCoroutineScope()
-    val yaw = remember(scene) { Animatable(-120f) }
-    var pitch by remember(scene) { mutableFloatStateOf(22f) }
+    val home = remember(scene) { homeView(scene) }
+    val yaw = remember(scene) { Animatable(home.first - 85f) }
+    var pitch by remember(scene) { mutableFloatStateOf(home.second) }
     var zoom by remember(scene) { mutableFloatStateOf(1f) }
-    LaunchedEffect(scene) { yaw.animateTo(-35f, spring(dampingRatio = 0.75f, stiffness = 40f)) }
+    LaunchedEffect(scene) { yaw.animateTo(home.first, spring(dampingRatio = 0.75f, stiffness = 40f)) }
     // A staged scene: one shape after another, 0.6 s each; else all at once.
     val drawn = remember(scene) { Animatable(if (scene.staged) 0f else 1f) }
     val count = scene.shapes.size.coerceAtLeast(1)
@@ -100,8 +101,8 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier, height: androidx.comp
                     .pointerInput(scene) {
                         detectTapGestures(onDoubleTap = {
                             haptics.tick()
-                            pitch = 22f; zoom = 1f
-                            scope.launch { yaw.animateTo(-35f, spring(dampingRatio = 0.8f, stiffness = 120f)) }
+                            pitch = home.second; zoom = 1f
+                            scope.launch { yaw.animateTo(home.first, spring(dampingRatio = 0.8f, stiffness = 120f)) }
                             scope.launch { play() }
                         })
                     }
@@ -297,4 +298,27 @@ private fun DrawScope.drawLabel(v: View, s: Shape3, color: Color, ink: Color, me
     val text = measurer.measure(s.label, TextStyle(color = ink, fontSize = 14.sp, fontWeight = FontWeight.Bold))
     val place = Offset((p.x + 8).coerceIn(0f, size.width - text.size.width), (p.y - text.size.height - 4).coerceIn(0f, size.height - text.size.height))
     drawText(text, topLeft = place, color = color.copy(alpha = 1f).let { androidx.compose.ui.graphics.lerp(it, ink, 0.35f) })
+}
+
+/**
+ * The first view: −35° and 22° as a rule; when the scene shows a face (a
+ * section, a triangle), turned so that face is seen at a slant, never on
+ * its edge (|n·d| near 0.55, d where the eye looks).
+ */
+private fun homeView(scene: Scene): Pair<Float, Float> {
+    val face = scene.shapes.filterIsInstance<Shape3.Face>().filter { !it.soft && it.corners.size >= 3 }
+        .maxByOrNull { f -> ((f.corners[1] - f.corners[0]) cross (f.corners[2] - f.corners[0])).norm } ?: return -35f to 22f
+    val n = ((face.corners[1] - face.corners[0]) cross (face.corners[2] - face.corners[0])).unit()
+    fun look(yaw: Double, pitch: Double): Double {
+        val cy = cos(Math.toRadians(yaw)); val sy = sin(Math.toRadians(yaw)); val cp = cos(Math.toRadians(pitch)); val sp = sin(Math.toRadians(pitch))
+        return abs(n dot Vec3(sy * cp, cy * cp, -sp))
+    }
+    if (look(-35.0, 22.0) > 0.45) return -35f to 22f
+    var best = -35.0 to 22.0; var score = Double.MAX_VALUE
+    for (yaw in -180 until 180 step 5) for (pitch in 15..40 step 5) {
+        // Near 0.55, as a textbook draws it, and close to the usual view.
+        val s = abs(look(yaw.toDouble(), pitch.toDouble()) - 0.55) + (180 - abs(((yaw + 35 + 540) % 360) - 180.0)) / 600.0 + abs(pitch - 22) / 600.0
+        if (s < score) { score = s; best = yaw.toDouble() to pitch.toDouble() }
+    }
+    return best.first.toFloat() to best.second.toFloat()
 }
