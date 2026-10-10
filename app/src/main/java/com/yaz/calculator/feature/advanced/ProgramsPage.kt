@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.InterceptPlatformTextInput
@@ -138,7 +139,15 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
     val p = adv.program ?: return
     val haptics = rememberHaptics()
     val colors = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    val scroll = rememberScrollState()
+    // A figure came: down to it, the keys folded meanwhile.
+    LaunchedEffect(adv.outcome, adv.showingScene) {
+        if (!adv.showingScene) return@LaunchedEffect
+        // Once the keys have folded and the figure is laid out.
+        kotlinx.coroutines.delay(350)
+        scroll.animateScrollTo(scroll.maxValue)
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(scroll)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 AppIcons.ArrowBack, contentDescription = "Programs",
@@ -153,20 +162,9 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
             val chosen = adv.programField == i
             val focus = remember(p.id, i) { FocusRequester() }
             LaunchedEffect(chosen, p.id) { if (chosen) runCatching { focus.requestFocus() } }
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 2.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .then(if (chosen) Modifier.border(1.dp, Gold.copy(alpha = 0.7f), RoundedCornerShape(14.dp)) else Modifier)
-                    .clickable { haptics.tick(); adv.programField = i }
-                    .padding(horizontal = 10.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(0.45f)) {
-                    Text(field.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    if (field.name.get() != field.symbol) Text(field.name.get(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2)
-                }
+            // A function or a list takes the whole width under its name; a number sits beside it.
+            val wide = field.kind != com.yaz.calculator.engine.programs.FieldKind.NUMBER
+            val input: @Composable (Modifier) -> Unit = { m ->
                 InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
                     BasicTextField(
                         state = adv.programFields[i],
@@ -174,9 +172,32 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                         lineLimits = TextFieldLineLimits.SingleLine,
                         textStyle = TextStyle(fontSize = 20.sp, color = colors.onSurface, textAlign = TextAlign.End),
                         cursorBrush = SolidColor(if (chosen) Gold else Color.Transparent),
-                        modifier = Modifier.weight(0.45f).focusRequester(focus).semantics { contentDescription = field.symbol }
+                        modifier = m.focusRequester(focus)
+                            .onFocusChanged { if (it.isFocused && adv.programField != i) { adv.programField = i; adv.showingScene = false } }
+                            .semantics { contentDescription = field.symbol }
                     )
                 }
+            }
+            val row = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 2.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .then(if (chosen) Modifier.border(1.dp, Gold.copy(alpha = 0.7f), RoundedCornerShape(14.dp)) else Modifier)
+                .clickable { haptics.tick(); adv.programField = i; adv.showingScene = false }
+                .padding(horizontal = 10.dp, vertical = 6.dp)
+            if (wide) Column(row) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(field.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.width(8.dp))
+                    Text(field.name.get(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2, modifier = Modifier.weight(1f))
+                }
+                input(Modifier.fillMaxWidth().padding(top = 2.dp))
+            } else Row(row, verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(0.45f)) {
+                    Text(field.symbol, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    if (field.name.get() != field.symbol) Text(field.name.get(), style = MaterialTheme.typography.bodySmall, color = colors.onSurfaceVariant, maxLines = 2)
+                }
+                input(Modifier.weight(0.45f))
                 Text(field.unit, style = MaterialTheme.typography.labelLarge, color = colors.onSurfaceVariant, textAlign = TextAlign.End, modifier = Modifier.weight(0.15f))
             }
         }
@@ -190,6 +211,10 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                     color = if (line.result) colors.primary else colors.onSurface,
                     modifier = Modifier.padding(vertical = 2.dp, horizontal = 4.dp)
                 )
+            }
+            o.scene?.let { scene ->
+                Spacer(Modifier.height(10.dp))
+                SceneView(scene)
             }
         }
     }

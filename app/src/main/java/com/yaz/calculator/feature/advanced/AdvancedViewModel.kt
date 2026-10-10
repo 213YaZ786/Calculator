@@ -311,17 +311,28 @@ class AdvancedViewModel(private val store: AdvancedStore, private val settings: 
     }
 
     /** "=" on a program: each field read as an expression (6.67×10^−11 works), the empty ones left to find. */
+    /** A program's figure on show: the keys fold to their gold row until a field is touched. */
+    var showingScene by mutableStateOf(false)
+
     fun runProgram(): Feel {
         val p = program ?: return Feel.REJECT
         val values = HashMap<String, Double?>()
+        val texts = HashMap<String, String>()
         p.fields.forEachIndexed { i, f ->
             val text = programFields[i].text.toString()
+            // A function of x or a list is read by the program itself.
+            if (f.kind != com.yaz.calculator.engine.programs.FieldKind.NUMBER) {
+                texts[f.symbol] = text
+                values[f.symbol] = null
+                return@forEachIndexed
+            }
             values[f.symbol] = if (text.isBlank()) null else {
                 runCatching { com.yaz.calculator.engine.Calc().evaluate(text, degrees).crValue().toDouble() }.getOrNull()
                     ?: run { outcome = Outcome(listOf(com.yaz.calculator.engine.programs.Line(UNREADABLE.get().format(f.symbol)))); return Feel.REJECT }
             }
         }
-        outcome = p.run(values)
+        outcome = p.run(values, texts, degrees)
+        showingScene = outcome?.scene != null
         return if (outcome!!.lines.any { it.result }) Feel.DONE else Feel.REJECT
     }
 

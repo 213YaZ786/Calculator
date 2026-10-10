@@ -11,19 +11,32 @@ data class Words(val fr: String, val en: String) {
 
 enum class Subject(val title: Words) {
     MATHS(Words("Maths", "Maths")),
+    ANALYSIS(Words("Analyse", "Calculus")),
+    STATS(Words("Probabilités et statistiques", "Probability and statistics")),
+    GEOMETRY(Words("Géométrie dans l'espace", "Geometry in space")),
     EXPERT(Words("Maths expertes", "Advanced maths")),
     PHYSICS(Words("Physique", "Physics")),
     CHEMISTRY(Words("Chimie", "Chemistry"))
 }
 
-/** A value the program asks for: its symbol, its name, its unit; [whole] for integers. */
-data class Field(val symbol: String, val name: Words, val unit: String = "", val whole: Boolean = false)
+/** What a field holds: a number, a function of x, or numbers separated by the "," key. */
+enum class FieldKind { NUMBER, FUNCTION, LIST }
+
+/** A value the program asks for: its symbol, its name, its unit; [whole] for integers; [optional] may stay empty. */
+data class Field(
+    val symbol: String,
+    val name: Words,
+    val unit: String = "",
+    val whole: Boolean = false,
+    val kind: FieldKind = FieldKind.NUMBER,
+    val optional: Boolean = false
+)
 
 /** A line of what a program gives back: a result to read, or a step of the working. */
 data class Line(val text: String, val result: Boolean = false)
 
-/** What a run gives: the lines, and the values it found for the fields left empty. */
-data class Outcome(val lines: List<Line>, val found: Map<String, Double> = emptyMap())
+/** What a run gives: the lines, the values it found for the fields left empty, and a scene in space to look at. */
+data class Outcome(val lines: List<Line>, val found: Map<String, Double> = emptyMap(), val scene: Scene? = null)
 
 /** A program of the PRGM menu: fields to fill, then [run] works out the rest. */
 interface Program {
@@ -36,6 +49,9 @@ interface Program {
 
     /** [values] by symbol, null where empty; an Outcome, or a message saying what is missing. */
     fun run(values: Map<String, Double?>): Outcome
+
+    /** With the text of the function and list fields as typed, and the angle unit. */
+    fun run(values: Map<String, Double?>, texts: Map<String, String>, degrees: Boolean): Outcome = run(values)
 }
 
 /**

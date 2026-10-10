@@ -422,4 +422,4 @@ private fun clean(x: Double): Double {
 }
 
 /** Every program, by subject. */
-val programs: List<Program> by lazy { maths + expert + physics + chemistry }
+val programs: List<Program> by lazy { maths + sequences + analysis + statistics + geometry + expert + algebra + physics + chemistry }

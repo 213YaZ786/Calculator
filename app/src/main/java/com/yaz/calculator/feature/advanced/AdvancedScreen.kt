@@ -122,8 +122,10 @@ fun AdvancedScreen(
     var menu by remember { mutableStateOf(Menu.NONE) }
     // On the graph and the table the keys fold to their gold row: the screen takes the room, as the TI's GRAPH.
     // Writing a program takes the phone's keyboard: the keys fold away entirely then.
-    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.program == null && adv.running == null)
+    val folded = !wide && (adv.page == Page.GRAPH || adv.page == Page.TABLE || adv.page == Page.PROGRAMS && adv.running == null && (adv.program == null || adv.showingScene))
     val hidden = adv.page == Page.PROGRAMS && adv.editing != null
+    // A program reading a function of x keeps the sin row, as the f(x) page does.
+    val wantsFunctions = adv.page == Page.PROGRAMS && adv.running == null && adv.program?.fields?.any { it.kind == com.yaz.calculator.engine.programs.FieldKind.FUNCTION } == true
     val keys: @Composable (Modifier) -> Unit = { m ->
         Column(m) {
             KeyGrid(listOf(goldRow(adv, onQuit) { menu = it }), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp)
@@ -135,7 +137,7 @@ fun AdvancedScreen(
                 KeyGrid(programmerKeys(calc), Modifier.fillMaxWidth().weight(1f), gap = 8.dp, firstIndex = 11)
             } else {
                 // A program takes numbers: no sin row, the room goes to its fields.
-                if (adv.page != Page.PROGRAMS && adv.page != Page.STATS) {
+                if (adv.page != Page.PROGRAMS && adv.page != Page.STATS || wantsFunctions) {
                     KeyGrid(listOf(functionRow(calc, adv)), Modifier.fillMaxWidth().height(keysHeight * 0.13f), gap = 8.dp, firstIndex = 5)
                     Spacer(Modifier.height(8.dp))
                 }
@@ -158,7 +160,7 @@ fun AdvancedScreen(
             Spacer(Modifier.height(10.dp))
             val target = when {
                 folded -> keysHeight * 0.13f
-                adv.page == Page.PROGRAMS || adv.page == Page.STATS -> keysHeight * 0.78f
+                adv.page == Page.PROGRAMS || adv.page == Page.STATS -> keysHeight * (if (wantsFunctions) 0.92f else 0.78f)
                 else -> keysHeight
             }
             val height by animateDpAsState(target, spring(dampingRatio = 0.8f, stiffness = 300f), label = "keys")
