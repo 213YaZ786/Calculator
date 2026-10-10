@@ -60,6 +60,7 @@ import com.yaz.calculator.ui.glass.LocalGlass
 import com.yaz.calculator.ui.glass.groundHere
 import androidx.compose.material3.MaterialTheme
 import kotlinx.coroutines.launch
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.animateFloat
@@ -201,7 +202,9 @@ fun CalcScreen(
             val calcWidth = if (sideHistory) minOf(maxW * 0.7f, ((available * 0.58f - 32.dp) / 5) * 7 * 1.12f + 60.dp + 24.dp) else maxW
             if (sideHistory) {
                 Box(Modifier.weight(1f).fillMaxHeight()) {
-                    HistoryList(vm, style, PaddingValues(top = padding.calculateTopPadding(), bottom = 16.dp), onTaken = {})
+                    // Its last line level with the keys' bottom row: the keys' margin and the navigation bar.
+                    val navigation = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    HistoryList(vm, style, PaddingValues(top = padding.calculateTopPadding(), bottom = 12.dp + navigation), onTaken = {})
                 }
             }
             Column(
