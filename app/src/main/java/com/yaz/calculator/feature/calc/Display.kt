@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.calc
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.draganddrop.toAndroidDragEvent
 import androidx.compose.foundation.draganddrop.dragAndDropTarget
@@ -203,6 +204,9 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
                     Spacer(Modifier.fillMaxWidth())
                 }
             }
+            // 07734 turns upside down into hELLO; 213786 is the app's ⵣ, glowing.
+            val egg = if (vm.evaluated) Eggs.word(vm.previous) else null
+            if (egg != null) EggWord(egg, size) else
             CompositionLocalProvider(LocalClipboard provides spelling) {
                 InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
                     // Drawn again when a stored result's digits arrive: the field keeps its first rendering otherwise.
@@ -272,6 +276,27 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
         actions()
         }
     }
+}
+
+@Composable
+private fun EggWord(word: String, size: TextUnit) {
+    val turn = remember(word) { androidx.compose.animation.core.Animatable(180f) }
+    LaunchedEffect(word) { turn.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.55f, stiffness = 120f)) }
+    val glow = androidx.compose.animation.core.rememberInfiniteTransition(label = "egg")
+    val breath by glow.animateFloat(8f, 28f, androidx.compose.animation.core.infiniteRepeatable(androidx.compose.animation.core.tween(1200), androidx.compose.animation.core.RepeatMode.Reverse), label = "breath")
+    val colors = MaterialTheme.colorScheme
+    val lit = word == "ⵣ"
+    Text(
+        word,
+        style = TextStyle(
+            fontSize = if (lit) size * 1.6f else size,
+            textAlign = TextAlign.End,
+            fontWeight = FontWeight.Light,
+            color = if (lit) colors.primary else colors.onBackground,
+            shadow = if (lit) androidx.compose.ui.graphics.Shadow(colors.primary, blurRadius = breath) else null
+        ),
+        modifier = Modifier.fillMaxWidth().graphicsLayer { rotationZ = turn.value }
+    )
 }
 
 @Composable

@@ -116,4 +116,10 @@ class SheetEvalTest {
         assertEquals(listOf("5"), lines("15/3"))
         assertEquals(listOf("7"), lines("15/3 + 2"))
     }
+
+    @Test
+    fun theGreatQuestion() {
+        assertEquals(listOf("42"), lines("The answer to life, the universe and everything"))
+        assertEquals(listOf("42"), lines("La réponse sur la vie, l'univers et le reste", Locale.FRANCE))
+    }
 }

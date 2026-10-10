@@ -101,7 +101,8 @@ fun CalcScreen(
     val reveal = remember { androidx.compose.animation.core.Animatable(0f) }
     val fade = remember { androidx.compose.animation.core.Animatable(0f) }
     androidx.compose.runtime.LaunchedEffect(vm.reveals) {
-        if (vm.reveals == 0) return@LaunchedEffect
+        if (vm.reveals == vm.revealsPlayed) return@LaunchedEffect
+        vm.revealsPlayed = vm.reveals
         fade.snapTo(1f)
         reveal.snapTo(0f)
         // Cleared as the reveal starts (AOSP's onAnimationStart): what is typed meanwhile stays.
@@ -319,7 +320,7 @@ private fun scientific(vm: CalcViewModel, open: Boolean, showFold: Boolean, fold
     val root = if (inv) KeyDef("x²", KeyKind.FUNCTION, "Square") { vm.suffix(Sym.SQUARE) } else KeyDef("√", KeyKind.FUNCTION, "Square root") { vm.piece("√") }
     val first = listOf(
         root,
-        KeyDef("π", KeyKind.FUNCTION, "Pi") { vm.piece("π") },
+        KeyDef("π", KeyKind.FUNCTION, "Pi", glow = Eggs.piDay()) { vm.piece("π") },
         KeyDef("^", KeyKind.FUNCTION, "Power") { vm.operator(Sym.POWER) },
         KeyDef("!", KeyKind.FUNCTION, "Factorial") { vm.suffix(Sym.FACT) },
         if (showFold) KeyDef(null, KeyKind.TOGGLE, if (open) "Fewer functions" else "More functions", icon = if (open) AppIcons.ExpandLess else AppIcons.ExpandMore) { fold(); Feel.TICK }
@@ -352,7 +353,7 @@ private fun wideScientific(vm: CalcViewModel): List<List<KeyDef?>> {
         listOf(
             KeyDef("INV", KeyKind.TOGGLE, "Inverse functions", on = inv) { vm.inverse = !vm.inverse; Feel.TICK },
             KeyDef(if (vm.degrees) "DEG" else "RAD", KeyKind.TOGGLE, if (vm.degrees) "Degrees, switch to radians" else "Radians, switch to degrees") { vm.toggleDegrees(); Feel.TICK },
-            KeyDef("π", KeyKind.FUNCTION, "Pi") { vm.piece("π") }
+            KeyDef("π", KeyKind.FUNCTION, "Pi", glow = Eggs.piDay()) { vm.piece("π") }
         ),
         listOf(fn(vm, inv, "sin", "sin⁻¹"), fn(vm, inv, "cos", "cos⁻¹"), fn(vm, inv, "tan", "tan⁻¹")),
         listOf(

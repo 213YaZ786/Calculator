@@ -1,5 +1,6 @@
 package com.yaz.calculator.feature.calc
 
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -68,6 +69,8 @@ class KeyDef(
     val on: Boolean = false,
     /** A key that does nothing here (8 in octal): faded, it shakes when pressed. */
     val dim: Boolean = false,
+    /** A key that glows, as π on its day. */
+    val glow: Boolean = false,
     /** A long press, given the key's centre in the window (⌫ clears all). */
     val longPress: ((androidx.compose.ui.geometry.Offset) -> Feel)? = null,
     /** In place of [press] when the key needs its centre in the window (AC). */
@@ -115,6 +118,16 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
         delay(index * 14L)
         appear.animateTo(1f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessMediumLow))
     }
+    // The keys fall off the screen and come back (Settings' version tapped seven times).
+    val fall = remember { Animatable(0f) }
+    val fellAt = Eggs.fellAt
+    LaunchedEffect(fellAt) {
+        if (!Eggs.falling(fellAt)) return@LaunchedEffect
+        delay(500L + index * 25L)
+        fall.animateTo(1f, tween(650, easing = androidx.compose.animation.core.FastOutLinearInEasing))
+        delay(350)
+        fall.animateTo(0f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow))
+    }
     var centre by remember { androidx.compose.runtime.mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
     val kick = remember { Animatable(0f) }
     val shake = remember { Animatable(0f) }
@@ -148,15 +161,24 @@ private fun CalcKey(key: KeyDef, side: Dp, index: Int, modifier: Modifier) {
                 rotationZ = when (key.kind) {
                     KeyKind.OPERATOR -> kick.value * 14f
                     else -> 0f
-                }
+                } + fall.value * ((index * 37) % 61 - 30)
                 translationX = with(density) {
                     shake.value * 8.dp.toPx() + if (key.kind == KeyKind.BACK) -kick.value * 10.dp.toPx() else 0f
                 }
-                translationY = with(density) { if (key.kind == KeyKind.FUNCTION) -kick.value * 5.dp.toPx() else 0f }
+                translationY = with(density) { (if (key.kind == KeyKind.FUNCTION) -kick.value * 5.dp.toPx() else 0f) + fall.value * 1400.dp.toPx() }
                 rotationX = if (key.kind == KeyKind.TOGGLE) kick.value * 180f else 0f
             },
         contentAlignment = Alignment.Center
     ) {
+        // π on its day: a halo breathing around it.
+        if (key.glow) {
+            val halo = androidx.compose.animation.core.rememberInfiniteTransition(label = "glow")
+            val breath by halo.animateFloat(0.25f, 0.7f, androidx.compose.animation.core.infiniteRepeatable(tween(1400), androidx.compose.animation.core.RepeatMode.Reverse), label = "breath")
+            val ring = colors.primary
+            Canvas(Modifier.fillMaxSize()) {
+                drawCircle(ring.copy(alpha = breath * 0.5f), radius = size.minDimension / 2f * (1f + breath * 0.18f))
+            }
+        }
         // "=" sends a ring of light out when it gives a result.
         if (key.kind == KeyKind.EQUALS && kick.value > 0f) {
             val ring = colors.primary

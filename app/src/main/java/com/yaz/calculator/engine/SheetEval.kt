@@ -53,6 +53,11 @@ class SheetEval(
                 val label = m.groupValues[1].trim()
                 body = if (label.lowercase() in TOTAL && m.groupValues[2].isBlank()) label else m.groupValues[2].trim()
             }
+            // The great question of life, the universe and everything (Google Search's egg).
+            if (asksTheQuestion(body)) {
+                out += LineValue(UnifiedReal(42), total = false)
+                continue
+            }
             // Dates and the clock: "today + 90 days", "14:30 + 2h45".
             dates.evaluate(body)?.let { moment ->
                 out += LineValue(UnifiedReal.ZERO, total = false, moment = moment)
@@ -137,7 +142,16 @@ class SheetEval(
     /** What a person types, in the app's form, currency signs left out. */
     internal fun normalise(text: String): String = CURRENCY.replace(prepare(text), "")
 
+    /** Life, the universe and everything, in the major languages. */
+    private fun asksTheQuestion(line: String): Boolean {
+        val l = line.lowercase()
+        return LIFE.any { it in l } && UNIVERSE.any { it in l } && EVERYTHING.any { it in l }
+    }
+
     companion object {
+        private val LIFE = listOf("life", "vie", "vida", "leben", "vita", "leven")
+        private val UNIVERSE = listOf("univers", "universo", "universum")
+        private val EVERYTHING = listOf("everything", "reste", "tout", "todo", "rest", "alles", "tutto", "tudo")
         private val ASSIGNMENT = Regex("^([\\p{L}_][\\p{L}\\p{N}_]*)\\s*=\\s*(.+)$")
         private val LABEL = Regex("^([^:=]*\\p{L}[^:=]*):\\s*(.*)$")
         private val WORD = Regex("[\\p{L}_][\\p{L}\\p{N}_]*")

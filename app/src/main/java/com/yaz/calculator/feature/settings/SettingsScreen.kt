@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -121,7 +122,19 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
 
             Section("About") {
                 SettingRow(title = "Updates", summary = updatesLabel(settings.updates), onClick = { dialog = OpenDialog.UPDATES })
-                SettingRow(title = "Calculator ${BuildConfig.VERSION_NAME}", summary = null, onClick = null)
+                // Seven taps, as on Android's own version: the keys fall.
+                var taps by remember { mutableStateOf(0 to 0L) }
+                SettingRow(title = "Calculator ${BuildConfig.VERSION_NAME}", summary = null, onClick = {
+                    val now = System.currentTimeMillis()
+                    val count = if (now - taps.second < 1_500) taps.first + 1 else 1
+                    taps = count to now
+                    if (count >= 7) {
+                        taps = 0 to 0L
+                        haptics.done()
+                        com.yaz.calculator.feature.calc.Eggs.dropKeys()
+                        onBack()
+                    }
+                })
                 SettingRow(
                     title = "Exact arithmetic",
                     summary = "crcalc and ExactCalculator, Android Open Source Project and LineageOS, Apache License 2.0",

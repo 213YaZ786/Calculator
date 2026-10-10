@@ -139,6 +139,9 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
     var reveals by mutableIntStateOf(0)
         private set
 
+    /** The reveals already played: a screen built again (back from Settings) does not clear again. */
+    var revealsPlayed = 0
+
     /** AC, or a long press on ⌫: the reveal runs, then [clear] under it. */
     fun clearWithReveal(from: androidx.compose.ui.geometry.Offset): Feel {
         if (text.text.isEmpty() && previous == null && error == null) return Feel.REJECT
