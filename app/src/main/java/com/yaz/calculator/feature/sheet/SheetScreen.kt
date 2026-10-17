@@ -113,6 +113,7 @@ import com.yaz.calculator.ui.component.FloatingTop
 import com.yaz.calculator.ui.component.PillItem
 import com.yaz.calculator.ui.component.PillMenu
 import com.yaz.calculator.ui.component.PillMotion
+import com.yaz.calculator.ui.component.BoldButton
 import com.yaz.calculator.ui.component.QuietButton
 import com.yaz.calculator.ui.component.ZoneAlertDialog
 import com.yaz.calculator.ui.component.ZoneSurface
@@ -345,7 +346,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
             onDismissRequest = { deleting = false },
             title = { Text("Delete this sheet?") },
             confirmButton = {
-                QuietButton(onClick = {
+                BoldButton(filled = true, onClick = {
                     deleting = false
                     haptics.done()
                     store.delete(id)

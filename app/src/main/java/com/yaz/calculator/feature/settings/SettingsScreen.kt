@@ -19,8 +19,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -43,7 +41,10 @@ import com.yaz.calculator.core.update.Updates
 import com.yaz.calculator.data.settings.ThemeMode
 import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.navigation.LocalReadableInset
+import com.yaz.calculator.ui.component.BoldButton
 import com.yaz.calculator.ui.component.FloatingAction
+import com.yaz.calculator.ui.component.GlassRadio
+import com.yaz.calculator.ui.component.GlassSwitch
 import com.yaz.calculator.ui.component.FloatingFrame
 import com.yaz.calculator.ui.component.FloatingTop
 import com.yaz.calculator.ui.component.QuietButton
@@ -179,7 +180,7 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             onDismissRequest = { dialog = OpenDialog.NONE },
             title = { Text("Clear the history?") },
             confirmButton = {
-                QuietButton(onClick = {
+                BoldButton(filled = true, onClick = {
                     viewModel.clearHistory()
                     haptics.done()
                     dialog = OpenDialog.NONE
@@ -222,7 +223,7 @@ private fun SettingRow(title: String, summary: String?, onClick: (() -> Unit)?, 
 private fun SwitchRow(title: String, summary: String?, checked: Boolean, onChange: (Boolean) -> Unit) {
     val haptics = rememberHaptics()
     val change = { on: Boolean -> haptics.toggle(on); onChange(on) }
-    SettingRow(title, summary, onClick = { change(!checked) }, quiet = true, trailing = { Switch(checked = checked, onCheckedChange = change) })
+    SettingRow(title, summary, onClick = { change(!checked) }, quiet = true, trailing = { GlassSwitch(checked = checked, onCheckedChange = change) })
 }
 
 @Composable
@@ -241,7 +242,7 @@ private fun <T> ChoiceDialog(title: String, options: List<Pair<T, String>>, sele
                             .padding(vertical = 10.dp, horizontal = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(selected = value == selected, onClick = null)
+                        GlassRadio(selected = value == selected, onClick = null)
                         Text(label, modifier = Modifier.padding(start = 12.dp))
                     }
                 }

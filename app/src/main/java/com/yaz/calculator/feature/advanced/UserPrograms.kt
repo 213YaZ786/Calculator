@@ -51,6 +51,7 @@ import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.engine.programs.Words
 import com.yaz.calculator.feature.calc.feelIt
 import com.yaz.calculator.feature.calc.showIn
+import com.yaz.calculator.ui.component.BoldButton
 import com.yaz.calculator.ui.component.QuietButton
 import com.yaz.calculator.ui.component.ZoneAlertDialog
 import com.yaz.calculator.ui.component.ZoneSurface
@@ -195,7 +196,7 @@ fun ProgramRun(adv: AdvancedViewModel, style: NumberStyle) {
     if (deleting) ZoneAlertDialog(
         onDismissRequest = { deleting = false },
         title = { Text(DELETE_ASK.get().format(program.name)) },
-        confirmButton = { QuietButton(onClick = { deleting = false; feelIt(haptics, adv.deleteProgram(index)) }) { Text(DELETE.get(), color = colors.error) } },
+        confirmButton = { BoldButton(filled = true, onClick = { deleting = false; feelIt(haptics, adv.deleteProgram(index)) }) { Text(DELETE.get(), color = colors.error) } },
         dismissButton = { QuietButton(onClick = { deleting = false }) { Text(CANCEL.get()) } }
     )
 }

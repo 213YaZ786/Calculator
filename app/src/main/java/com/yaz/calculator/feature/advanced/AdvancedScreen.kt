@@ -88,6 +88,7 @@ import com.yaz.calculator.feature.calc.feelIt
 import com.yaz.calculator.feature.calc.programmerBand
 import com.yaz.calculator.feature.calc.programmerKeys
 import com.yaz.calculator.feature.calc.showIn
+import com.yaz.calculator.ui.component.BoldButton
 import com.yaz.calculator.ui.component.QuietButton
 import com.yaz.calculator.ui.component.ZoneAlertDialog
 import com.yaz.calculator.ui.component.ZoneSurface
@@ -579,7 +580,7 @@ private fun MathMenu(onDismiss: () -> Unit, onPick: (String) -> Unit) {
     )
     ZoneAlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { QuietButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { BoldButton(filled = true, onClick = onDismiss) { Text("Close") } },
         title = {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 tabs.forEachIndexed { i, (name, _) ->
@@ -613,7 +614,7 @@ private fun MathMenu(onDismiss: () -> Unit, onPick: (String) -> Unit) {
 private fun ListMenu(title: String, items: List<Pair<String, () -> Unit>>, onDismiss: () -> Unit) {
     ZoneAlertDialog(
         onDismissRequest = onDismiss,
-        confirmButton = { QuietButton(onClick = onDismiss) { Text("Close") } },
+        confirmButton = { BoldButton(filled = true, onClick = onDismiss) { Text("Close") } },
         title = { Text(title) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
@@ -660,7 +661,7 @@ private fun NumbersDialog(
     ZoneAlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            QuietButton(onClick = {
+            BoldButton(filled = true, onClick = {
                 val values = fields.map { (_, s) -> style.read(s.text.toString()).replace(Sym.MINUS, '-').toDoubleOrNull() }
                 wrong = values.any { it == null || !it.isFinite() } || !onDone(values.map { it!! })
             }) { Text("OK") }

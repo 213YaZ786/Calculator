@@ -193,7 +193,7 @@ private fun RenameDialog(current: String, onDismiss: () -> Unit, onDone: (String
                 modifier = Modifier.fillMaxWidth()
             )
         },
-        confirmButton = { com.yaz.calculator.ui.component.QuietButton(onClick = { state.text.toString().takeIf { it.isNotBlank() }?.let(onDone) }) { Text("Rename") } },
+        confirmButton = { com.yaz.calculator.ui.component.BoldButton(filled = true, onClick = { state.text.toString().takeIf { it.isNotBlank() }?.let(onDone) }) { Text("Rename") } },
         dismissButton = { com.yaz.calculator.ui.component.QuietButton(onClick = onDismiss) { Text("Cancel") } }
     )
 }

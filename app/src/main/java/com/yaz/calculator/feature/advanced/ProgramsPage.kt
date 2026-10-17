@@ -56,6 +56,7 @@ import com.yaz.calculator.engine.NumberStyle
 import com.yaz.calculator.engine.programs.Subject
 import com.yaz.calculator.engine.programs.programs
 import com.yaz.calculator.feature.calc.showIn
+import com.yaz.calculator.ui.component.GlassSlider
 import com.yaz.calculator.ui.component.ZoneSurface
 import com.yaz.calculator.ui.component.rememberHaptics
 import com.yaz.calculator.ui.component.sink
@@ -285,11 +286,10 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                 val now = adv.programFields[i].text.toString().replace('−', '-').toDoubleOrNull() ?: return@forEachIndexed
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().padding(horizontal = 6.dp)) {
                     Text("${field.symbol} = ${style.show(adv.programFields[i].text.toString())}", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, modifier = Modifier.widthIn(min = 92.dp))
-                    androidx.compose.material3.Slider(
+                    GlassSlider(
                         value = now.toFloat().coerceIn(range.start.toFloat(), range.endInclusive.toFloat()),
                         onValueChange = { adv.slide(i, it.toDouble()) },
                         valueRange = range.start.toFloat()..range.endInclusive.toFloat(),
-                        colors = androidx.compose.material3.SliderDefaults.colors(thumbColor = Gold, activeTrackColor = Gold, inactiveTrackColor = Gold.copy(alpha = 0.25f)),
                         modifier = Modifier.weight(1f).semantics { contentDescription = field.symbol }
                     )
                 }
