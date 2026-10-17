@@ -22,8 +22,8 @@ android {
         applicationId = "com.yaz.calculator"
         minSdk = 31
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.3.3"
+        versionCode = 12
+        versionName = "0.3.4"
         // Giac, for 64-bit ARM phones (the emulators run it translated): every
         // native library of the APK for that one, so it is the one Android picks.
         ndk { abiFilters += "arm64-v8a" }
@@ -107,6 +107,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.graphics.shapes)
     implementation(libs.androidx.navigation.compose)
 
     implementation(libs.kotlinx.serialization.json)
