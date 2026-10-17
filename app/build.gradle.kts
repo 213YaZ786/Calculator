@@ -22,8 +22,8 @@ android {
         applicationId = "com.yaz.calculator"
         minSdk = 31
         targetSdk = 37
-        versionCode = 12
-        versionName = "0.3.4"
+        versionCode = 13
+        versionName = "0.3.5"
         // Giac, for 64-bit ARM phones (the emulators run it translated): every
         // native library of the APK for that one, so it is the one Android picks.
         ndk { abiFilters += "arm64-v8a" }
