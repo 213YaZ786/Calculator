@@ -3,6 +3,7 @@ package com.yaz.calculator.data.settings
 import android.content.Context
 import com.yaz.calculator.core.common.writeTextAtomically
 import com.yaz.calculator.core.update.UpdateMode
+import com.yaz.calculator.engine.Fractions
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,8 @@ data class Settings(
     val degrees: Boolean = true,
     /** Thousands grouped as the user's language groups them. */
     val grouping: Boolean = true,
+    /** The exact fraction beside a result that is one (3/4 = 0.75) in the calculator, converter, sheets and programs. */
+    val exactFractions: Boolean = true,
     /** Calculations kept in the history. */
     val keepHistory: Boolean = true,
     /** The scientific keys unfolded on a phone held upright. */
@@ -50,7 +53,7 @@ class SettingsStore(context: Context) {
     private val file = File(context.filesDir, "settings.json")
     private val json = Json { ignoreUnknownKeys = true; prettyPrint = true }
 
-    private val _settings = MutableStateFlow(load())
+    private val _settings = MutableStateFlow(load()).also { Fractions.enabled = it.value.exactFractions }
     val settings: StateFlow<Settings> = _settings.asStateFlow()
 
     val current: Settings get() = _settings.value
@@ -65,6 +68,7 @@ class SettingsStore(context: Context) {
         val updated = transform(_settings.value)
         if (updated == _settings.value) return
         _settings.value = updated
+        Fractions.enabled = updated.exactFractions
         runCatching { file.writeTextAtomically(json.encodeToString(updated)) }
     }
 }

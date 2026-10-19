@@ -5,6 +5,13 @@ import android.content.ClipData
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.TextUnit
+import com.yaz.calculator.feature.calc.fitSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -95,6 +102,10 @@ import java.util.Locale
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.launch
 
+/** The amount and its result: the largest size that fits one line, and the smallest a number is read at. */
+private val AMOUNT_MAX = 40.sp
+private val AMOUNT_MIN = 24.sp
+
 /**
  * The converter: the category on top, the amount and its unit, the result
  * and its unit, a swap between them, and the calculator's keys below.
@@ -112,8 +123,8 @@ fun ConvertScreen(vm: ConvertViewModel, style: NumberStyle, padding: PaddingValu
         val keys = keys(vm, style)
         if (wide) {
             Row(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
-                    Sides(vm, style, onCategories = { categories = true }, onPick = { picking = it })
+                Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.Center) {
+                    Sides(vm, style, onCategories = { categories = true }, onPick = { picking = it }, compact = maxH < 480.dp)
                 }
                 KeyGrid(keys, Modifier.weight(1f).fillMaxHeight().padding(bottom = 12.dp), gap = 8.dp)
             }
@@ -145,7 +156,9 @@ fun ConvertScreen(vm: ConvertViewModel, style: NumberStyle, padding: PaddingValu
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> Unit, onPick: (Boolean) -> Unit) {
+private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> Unit, onPick: (Boolean) -> Unit, compact: Boolean = false) {
+    // A phone on its side has little height: tighter rows, and the column scrolls if it still does not fit.
+    val numberMin = if (compact) 40.dp else 56.dp
     val haptics = rememberHaptics()
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -157,31 +170,36 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         // The category, a pill that opens every category.
         ZoneSurface(shape = CircleShape, accent = true, onClick = { haptics.tick(); onCategories() }, modifier = Modifier.heightIn(min = 48.dp).sink()) {
-            Row(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.padding(horizontal = 18.dp, vertical = if (compact) 6.dp else 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Icon(iconOf(vm.category), contentDescription = null, modifier = Modifier.size(20.dp))
                 Text(nameOf(vm.category), style = MaterialTheme.typography.titleMedium)
                 Icon(AppIcons.ExpandMore, contentDescription = null, modifier = Modifier.size(20.dp))
             }
         }
-        Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(if (compact) 6.dp else 14.dp))
         Box(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 10.dp)) {
                 // From: the amount, typed with the keys below.
-                Side(vm.choice(vm.from), onUnit = { haptics.tick(); onPick(true) }) {
+                Side(vm.choice(vm.from), onUnit = { haptics.tick(); onPick(true) }, compact = compact) {
                     BoxWithConstraints(Modifier.fillMaxWidth()) {
-                        val zero = measurer.measure("0", TextStyle(fontSize = 34.sp)).size.width
-                        val chars = with(density) { (maxWidth.toPx() / zero).toInt() } - 1
+                        // The digits a line holds, counted at the smallest size a number takes here (grouping marks need a little room).
+                        val zero = measurer.measure("0", TextStyle(fontSize = AMOUNT_MIN)).size.width
+                        val chars = with(density) { (maxWidth.toPx() * 0.88f / zero).toInt() } - 1
                         LaunchedEffect(chars) { vm.measured(chars) }
+                        // One line, the amount shrinking to fit, then moving with the cursor (never wrapped under the swap).
+                        val size = fitSize(measurer, style.show(vm.input.text.toString()), constraints.maxWidth, AMOUNT_MAX, AMOUNT_MIN)
                         InterceptPlatformTextInput(interceptor = { _, _ -> awaitCancellation() }) {
                             BasicTextField(
                                 state = vm.input,
                                 inputTransformation = remember(style) { InputTransformation { cleanIn(this, style) } },
                                 outputTransformation = remember(style) { OutputTransformation { showIn(this, style) { "" } } },
-                                lineLimits = TextFieldLineLimits.MultiLine(maxHeightInLines = 3),
-                                textStyle = TextStyle(fontSize = 40.sp, textAlign = TextAlign.End, color = colors.onSurface, fontWeight = FontWeight.Light),
+                                lineLimits = TextFieldLineLimits.SingleLine,
+                                textStyle = TextStyle(fontSize = size, textAlign = TextAlign.End, color = colors.onSurface, fontWeight = FontWeight.Light),
                                 cursorBrush = SolidColor(colors.primary),
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .heightIn(min = numberMin)
+                                    .wrapContentHeight(Alignment.CenterVertically)
                                     .semantics { contentDescription = "Amount" }
                                     .onPreviewKeyEvent { e ->
                                         if (e.type == KeyEventType.KeyDown && (e.key == Key.Enter || e.key == Key.NumPadEnter)) { vm.equals(); true } else false
@@ -191,16 +209,18 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
                     }
                 }
                 // To: the result, a tap copies it.
-                Side(vm.choice(vm.to), onUnit = { haptics.tick(); onPick(false) }) {
+                Side(vm.choice(vm.to), onUnit = { haptics.tick(); onPick(false) }, compact = compact) {
                     val out = vm.output
                     // Copied: the number pops, as a key does.
                     val pop = remember { Animatable(0f) }
-                    Text(
+                    OneLine(
                         out?.let { style.show(it) } ?: "–",
-                        style = TextStyle(fontSize = 40.sp, textAlign = TextAlign.End, fontWeight = FontWeight.Normal),
+                        max = AMOUNT_MAX,
+                        min = AMOUNT_MIN,
+                        weight = FontWeight.Normal,
                         color = colors.primary,
                         modifier = Modifier
-                            .fillMaxWidth()
+                            .heightIn(min = numberMin)
                             .graphicsLayer {
                                 val k = 1f + 0.08f * pop.value
                                 scaleX = k
@@ -217,6 +237,10 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
                                 scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
                             }
                     )
+                    // The exact fraction under the decimals, when the result is a small one (NumWorks' exact beside approximate).
+                    vm.fraction?.takeIf { out != null }?.let { exact ->
+                        OneLine("= " + style.show(exact), max = 22.sp, min = 14.sp, weight = FontWeight.Normal, color = colors.onSurfaceVariant)
+                    }
                 }
             }
             // Between the two, the swap, turning half a turn each time.
@@ -243,10 +267,10 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
 
 /** One side: its unit as a pill to change it, then its number. */
 @Composable
-private fun Side(choice: Choice?, onUnit: () -> Unit, number: @Composable () -> Unit) {
+private fun Side(choice: Choice?, onUnit: () -> Unit, compact: Boolean = false, number: @Composable () -> Unit) {
     ZoneSurface(shape = RoundedCornerShape(28.dp), modifier = Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(horizontal = 18.dp, vertical = 12.dp), horizontalAlignment = Alignment.End) {
-            ZoneSurface(shape = CircleShape, onClick = onUnit, modifier = Modifier.heightIn(min = 40.dp).sink()) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = if (compact) 4.dp else 12.dp), horizontalAlignment = Alignment.End) {
+            ZoneSurface(shape = CircleShape, onClick = onUnit, modifier = Modifier.heightIn(min = if (compact) 36.dp else 40.dp).sink()) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text(
                         choice?.let { if (it.symbol != it.name) "${it.name} · ${it.symbol}" else it.name } ?: "Choose",
@@ -261,6 +285,28 @@ private fun Side(choice: Choice?, onUnit: () -> Unit, number: @Composable () -> 
             }
             number()
         }
+    }
+}
+
+// Source: ExactCalculator's CalculatorResult scrolls a result too long for its line, never cuts it
+// (https://github.com/LineageOS/android_packages_apps_ExactCalculator/blob/lineage-22.2/app/src/main/java/com/android/calculator2/CalculatorResult.java);
+// the size is the calculator's fitSize (feature/calc/Display.kt), the largest that holds the line.
+/** A number on one line: the largest size from [max] to [min] that fits, scrolled sideways when even [min] does not (never cut). */
+@Composable
+private fun OneLine(text: String, max: TextUnit, min: TextUnit, weight: FontWeight, color: Color, modifier: Modifier = Modifier) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+        val size = fitSize(measurer, text, constraints.maxWidth, max, min)
+        val scroll = rememberScrollState()
+        LaunchedEffect(text) { scroll.scrollTo(0) }
+        Text(
+            text,
+            style = TextStyle(fontSize = size, textAlign = TextAlign.End, fontWeight = weight),
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.horizontalScroll(scroll)
+        )
     }
 }
 

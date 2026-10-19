@@ -2,6 +2,7 @@ package com.yaz.calculator.engine.programs
 
 import com.yaz.calculator.engine.Calc
 import com.yaz.calculator.engine.Curve
+import com.yaz.calculator.engine.Fractions
 import com.yaz.calculator.engine.Sym
 
 /**
@@ -57,6 +58,7 @@ class Rich(
     override fun run(values: Map<String, Double?>): Outcome = run(values, emptyMap(), true)
 
     override fun run(values: Map<String, Double?>, texts: Map<String, String>, degrees: Boolean): Outcome {
+        Fractions.forget()
         for (fd in fields) {
             if (fd.optional) continue
             val filled = if (fd.kind == FieldKind.NUMBER) values[fd.symbol] != null else !texts[fd.symbol].isNullOrBlank()
@@ -91,6 +93,6 @@ internal fun words(symbol: String, fr: String, en: String) = Field(symbol, Words
 internal fun show(v: Double) = Solve.show(v)
 /** Four significant digits, for the numbers inside a step. */
 internal fun brief(v: Double): String = if (v == 0.0 || !v.isFinite()) show(v) else show(java.math.BigDecimal(v).round(java.math.MathContext(4)).toDouble())
-internal fun res(text: String) = Line(text, result = true)
+internal fun res(text: String) = Line(Fractions.annotate(text), result = true)
 internal fun stp(text: String) = Line(text)
 internal fun lines(vararg l: Line) = Outcome(l.toList())

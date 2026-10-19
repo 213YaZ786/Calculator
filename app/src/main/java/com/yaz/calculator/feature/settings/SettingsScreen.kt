@@ -93,6 +93,12 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
                     onChange = viewModel::setGrouping
                 )
                 SwitchRow(
+                    title = "Exact fractions",
+                    summary = "3/4 = 0.75",
+                    checked = settings.exactFractions,
+                    onChange = viewModel::setExactFractions
+                )
+                SwitchRow(
                     title = "Keep history",
                     summary = null,
                     checked = settings.keepHistory,

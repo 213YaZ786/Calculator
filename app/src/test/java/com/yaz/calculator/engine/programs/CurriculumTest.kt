@@ -92,7 +92,7 @@ class CurriculumTest {
     @Test
     fun bayes() {
         val t = text("bayes", mapOf("P(A)" to 0.01, "P(B|A)" to 0.99, "P(B|Ā)" to 0.05))
-        assertTrue(t, t.contains("P(A|B) = 0.1666666667"))
+        assertTrue(t, t.contains("P(A|B) = 1/6 ≈ 0.1666666667"))
     }
 
     @Test

@@ -101,6 +101,11 @@ import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import androidx.compose.foundation.horizontalScroll
+import com.yaz.calculator.engine.Fractions
+import com.yaz.calculator.feature.calc.fitSize
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.onEach
 import com.yaz.calculator.engine.UnifiedReal
@@ -126,7 +131,7 @@ import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 
 /** A line's result as shown: its digits in the app's form, what it counts, and whether it is a total. */
-private data class Shown(val text: String, val measure: Measure?, val total: Boolean, val ready: Boolean = false, val plotted: Plotted? = null, val fractal: Boolean = false)
+private data class Shown(val text: String, val measure: Measure?, val total: Boolean, val ready: Boolean = false, val plotted: Plotted? = null, val fractal: Boolean = false, val exact: String? = null)
 
 /**
  * A sheet: lines typed freely on the left, each line's result on the right,
@@ -154,12 +159,14 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     val focus = remember { FocusRequester() }
     val menu = rememberPillMenu()
     val density = LocalDensity.current
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
     val colors = MaterialTheme.colorScheme
 
     LaunchedEffect(id) {
         val typed = snapshotFlow { state.text.toString() }.debounce(150).onEach { store.write(id, it) }
         // Worked out again when rates arrive for a line converting currencies.
-        combine(typed, rates.table) { text, table -> text to table }.collectLatest { (text, table) ->
+        // Worked out again when the switch "Exact fractions" changes.
+        combine(typed, rates.table, settings.settings.map { it.exactFractions }.distinctUntilChanged()) { text, table, _ -> text to table }.collectLatest { (text, table) ->
             val outcome = compute(SHEET_MS) {
                 val eval = SheetEval(style, table?.rates)
                 val values = eval.evaluate(text, settings.current.degrees)
@@ -172,7 +179,11 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                 it.egg == "Mandelbrot" -> Shown("Mandelbrot", null, false, ready = true, fractal = true)
                                 it.curve != null -> Shown("Graph", null, false, ready = true, plotted = Plotted(it.legend.orEmpty(), it.curve))
                                 it.moment != null -> Shown(written(it.moment), null, false, ready = true)
-                                else -> Shown(write(it.value, it.measure), it.measure, it.total)
+                                else -> {
+                                    val exact = if (it.measure is Money) null else Fractions.exact(it.value)
+                                    // Beside a fraction the decimals are short: the fraction is the value.
+                                    Shown(write(it.value, it.measure, short = exact != null), it.measure, it.total, exact = exact)
+                                }
                             }
                         }
                     }
@@ -267,12 +278,20 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                             Icon(AppIcons.ShowChart, contentDescription = null, tint = colors.primary, modifier = Modifier.size(20.dp))
                                             Spacer(Modifier.width(6.dp))
                                             Text(shown.text, style = LINE.copy(fontWeight = FontWeight.Medium), color = colors.primary)
-                                        } else Text(
-                                            shownText(shown, style),
-                                            style = LINE.copy(textAlign = TextAlign.End, fontWeight = if (shown.total) FontWeight.Bold else FontWeight.Medium),
+                                        } else {
+                                            val result = shownText(shown, style)
+                                            // Source: ExactCalculator's CalculatorResult scrolls a result longer than its line and never cuts it
+                                            // (https://github.com/LineageOS/android_packages_apps_ExactCalculator/blob/lineage-22.2/app/src/main/java/com/android/calculator2/CalculatorResult.java);
+                                            // the size is the calculator's fitSize, the largest that holds the column.
+                                            val size = fitSize(measurer, result, with(density) { resultWidth.roundToPx() }, LINE.fontSize, 11.sp)
+                                            val scroll = rememberScrollState()
+                                            LaunchedEffect(result) { scroll.scrollTo(0) }
+                                            Text(
+                                            result,
+                                            style = LINE.copy(fontSize = size, textAlign = TextAlign.End, fontWeight = if (shown.total) FontWeight.Bold else FontWeight.Medium),
                                             color = colors.primary,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
+                                            softWrap = false,
                                             modifier = Modifier
                                                 .layout { measurable, constraints ->
                                                     val placeable = measurable.measure(constraints)
@@ -285,10 +304,12 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                                 .clip(RoundedCornerShape(8.dp))
                                                 .clickable(onClickLabel = "Copy") {
                                                     haptics.done()
-                                                    val text = shownText(shown.copy(text = shown.text.removeSuffix("…")), style)
+                                                    val text = shownText(shown.copy(text = shown.text.removeSuffix("…"), exact = null), style)
                                                     scope.launch { clipboard.setClipEntry(ClipEntry(ClipData.newPlainText("", text))) }
                                                 }
-                                        )
+                                                .horizontalScroll(scroll)
+                                            )
+                                        }
                                     }
                                     start += line.length + 1
                                 }
@@ -358,10 +379,10 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     }
 }
 
-private fun write(value: UnifiedReal, measure: Measure?): String {
+private fun write(value: UnifiedReal, measure: Measure?, short: Boolean = false): String {
     if (measure is Money) Format.money(value, measure.code, 18)?.let { return it.text }
-    // The digits leave room for the unit in the column.
-    val w = Format.write(value, if (measure is Physical) maxOf(6, 11 - measure.unit.symbol.length) else 13)
+    // The digits leave room for the unit in the column; the line shrinks to fit it and scrolls beyond.
+    val w = Format.write(value, if (measure is Physical) maxOf(8, 14 - measure.unit.symbol.length) else if (short) 8 else 13)
     return w.text + if (w.more) "…" else ""
 }
 
@@ -394,7 +415,9 @@ private fun written(moment: Moment, locale: Locale = Locale.getDefault()): Strin
 /** A result as the user reads it: their digits, then its unit, or its currency where their country writes it. */
 private fun shownText(shown: Shown, style: NumberStyle, locale: Locale = Locale.getDefault()): String {
     if (shown.ready) return shown.text
-    val number = style.show(shown.text)
+    val decimals = style.show(shown.text)
+    // A small exact fraction first, its decimals after (NumWorks' "exact = approximate"; ≈ when the digits are cut).
+    val number = shown.exact?.let { "${style.show(it)} ${if (shown.text.endsWith("…")) "≈" else "="} $decimals" } ?: decimals
     return when (val m = shown.measure) {
         null -> number
         is Physical -> "$number ${m.unit.symbol}"
@@ -414,7 +437,7 @@ private fun shownText(shown: Shown, style: NumberStyle, locale: Locale = Locale.
 private fun shareText(text: String, results: List<Shown?>, style: NumberStyle): String =
     text.split('\n').mapIndexed { i, line ->
         val r = results.getOrNull(i)
-        if (r != null && line.isNotBlank()) "$line  →  ${shownText(r.copy(text = r.text.removeSuffix("…")), style)}" else line
+        if (r != null && line.isNotBlank()) "$line  →  ${shownText(r.copy(text = r.text.removeSuffix("…"), exact = null), style)}" else line
     }.joinToString("\n")
 
 private val LINE = TextStyle(fontSize = 18.sp, lineHeight = 30.sp)

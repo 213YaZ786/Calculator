@@ -27,6 +27,7 @@ private class Method(
     private val work: (Map<String, Double>) -> List<Line>
 ) : Program {
     override fun run(values: Map<String, Double?>): Outcome {
+        com.yaz.calculator.engine.Fractions.forget()
         if (values.values.any { it == null } || values.size < fields.size) return Outcome(listOf(Line(ALL.get())))
         for (fd in fields) if (fd.whole && values[fd.symbol]!! != Math.rint(values[fd.symbol]!!)) return Outcome(listOf(Line(WHOLE.get().format(fd.symbol))))
         return runCatching { Outcome(work(values.mapValues { it.value!! })) }.getOrElse { Outcome(listOf(Line(IMPOSSIBLE.get()))) }
@@ -41,7 +42,7 @@ private class Method(
 
 private fun big(v: Double): BigInteger = BigInteger.valueOf(Math.round(v))
 private fun step(text: String) = Line(text)
-private fun result(text: String) = Line(text, result = true)
+private fun result(text: String) = Line(com.yaz.calculator.engine.Fractions.annotate(text), result = true)
 
 /** √n written simply: 2√3 for √12, 5 for √25. */
 private fun radical(n: BigInteger): String {

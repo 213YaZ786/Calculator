@@ -100,7 +100,7 @@ class IntegralsTest {
         val d = text("improper", mapOf("f" to "1÷x", "a" to "1"))
         assertTrue(d, d.contains("diverge"))
         val s = text("improper", mapOf("f" to "1÷√x", "a" to "0", "b" to "1"))
-        assertTrue(s, s.contains("Converges: ∫ ≈ 1.99"))
+        assertTrue(s, s.contains("Converges: ∫ ≈ 9999/5000 = 1.99"))
     }
 
     @Test
@@ -113,7 +113,7 @@ class IntegralsTest {
     @Test
     fun harmonicBounds() {
         val t = text("harmonic-bounds", mapOf("n" to "10"))
-        assertTrue(t, t.contains("H10 = 2.928968"))
+        assertTrue(t, t.contains("H10 = 7381/2520 ≈ 2.928968"))
     }
 
     @Test

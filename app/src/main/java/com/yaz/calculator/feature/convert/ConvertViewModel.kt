@@ -15,6 +15,7 @@ import com.yaz.calculator.data.settings.SettingsStore
 import com.yaz.calculator.engine.Calc
 import com.yaz.calculator.engine.Category
 import com.yaz.calculator.engine.Format
+import com.yaz.calculator.engine.Fractions
 import com.yaz.calculator.engine.Outcome
 import com.yaz.calculator.engine.Sym
 import com.yaz.calculator.engine.UnifiedReal
@@ -27,6 +28,8 @@ import java.util.Currency
 import java.util.Locale
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /** A unit as the converter lists it: an id, its name and its symbol (a currency's code). */
@@ -50,6 +53,9 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
         private set
     var output by mutableStateOf<String?>(null)
         private set
+    /** The result as an exact fraction (127/50) when it is a small one; the decimals above are its value. */
+    var fraction by mutableStateOf<String?>(null)
+        private set
     var room by mutableIntStateOf(16)
         private set
 
@@ -60,7 +66,8 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
     init {
         pickUnits()
         viewModelScope.launch {
-            combine(snapshotFlow { input.text.toString() }, rates.table) { text, table -> text to table }
+            // The switch "Exact fractions" is part of what the result is made of.
+            combine(snapshotFlow { input.text.toString() }, rates.table, settings.settings.map { it.exactFractions }.distinctUntilChanged()) { text, table, _ -> text to table }
                 .collect { (text, table) -> convert(text, table) }
         }
     }
@@ -164,8 +171,9 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
         val f = from
         val t = to
         val width = room
-        if (text.isBlank()) { output = null; return }
+        if (text.isBlank()) { output = null; fraction = null; return }
         job = viewModelScope.launch {
+            var exact: String? = null
             val outcome = compute(LIVE_MS) {
                 val amount = calc.evaluate(text, false)
                 val result = if (cat == Category.CURRENCY) {
@@ -178,9 +186,12 @@ class ConvertViewModel(private val settings: SettingsStore, val rates: Rates) : 
                     b.fromBase(a.toBase(amount))
                 }
                 val money = if (cat == Category.CURRENCY) Format.money(result, t, width) else null
+                // Money is rounded to its cents: no exact fraction of it.
+                exact = if (money == null) Fractions.exact(result) else null
                 Outcome.Value(result, money ?: Format.write(result, width))
             }
             output = (outcome as? Outcome.Value)?.written?.let { it.text + if (it.more) "…" else "" }
+            fraction = if (outcome is Outcome.Value) exact else null
         }
     }
 

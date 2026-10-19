@@ -76,7 +76,7 @@ class VectorsTest {
         // Right angle at A: H = A, O the middle of the hypotenuse.
         val t = text("triangle-centres", mapOf("A" to "0,0", "B" to "4,0", "C" to "0,3"))
         assertTrue(t, t.contains("Orthocentre H(0 ; 0)"))
-        assertTrue(t, t.contains("O(2 ; 1.5), R = 2.5"))
+        assertTrue(t, t.contains("O(2 ; 1.5), R = 5/2 = 2.5"))
         assertTrue(t, t.contains("Area 6"))
     }
 

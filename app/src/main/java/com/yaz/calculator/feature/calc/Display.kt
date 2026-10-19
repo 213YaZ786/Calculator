@@ -12,8 +12,6 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -21,13 +19,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.BasicTextField
@@ -101,8 +99,8 @@ import kotlinx.coroutines.launch
 /**
  * The top of the calculator: the expression, written as the user's language
  * writes numbers, with its cursor and selection; the result as it is typed
- * under it; after "=", the result in its place and the expression small
- * above. The phone's keyboard never opens: the keys below are the keyboard,
+ * under it (ExactCalculator: one display, no echo above); after "=", the
+ * result in its place. The phone's keyboard never opens: the keys below are the keyboard,
  * and a hardware keyboard types directly (Enter or = gives the result).
  */
 @OptIn(ExperimentalComposeUiApi::class)
@@ -167,22 +165,6 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
             Modifier.fillMaxWidth().heightIn(max = room - ACTIONS_ROOM).verticalScroll(rememberScrollState(), reverseScrolling = true),
             horizontalAlignment = Alignment.End
         ) {
-            AnimatedContent(
-                targetState = vm.previous,
-                transitionSpec = { (slideInVertically { it } + fadeIn()) togetherWith (slideOutVertically { -it } + fadeOut()) },
-                label = "previous"
-            ) { previous ->
-                if (previous != null) {
-                    Text(
-                        style.show(vm.spelled(previous)),
-                        style = TextStyle(fontSize = 22.sp, textAlign = TextAlign.End),
-                        color = colors.onSurfaceVariant,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Spacer(Modifier.fillMaxWidth())
-                }
-            }
             // 07734 turns upside down into hELLO; 213786 is the app's ⵣ, glowing.
             val egg = if (vm.evaluated) Eggs.word(vm.previous) else null
             if (egg != null) EggWord(egg, size) else
@@ -235,12 +217,18 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
             val words = if (vm.evaluated && vm.inWords) remember(vm.text.text, vm.shown.toMap()) { vm.resultText()?.let(::inWords) } else null
             Box(Modifier.fillMaxWidth().heightIn(min = 44.dp), contentAlignment = Alignment.CenterEnd) {
                 AnimatedContent(targetState = line, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "live") { text ->
+                    // The exact form ("= p/q") on one line, as large as fits and scrolled when it does not, never cut
+                    // (ExactCalculator's CalculatorResult: https://github.com/LineageOS/android_packages_apps_ExactCalculator/blob/lineage-22.2/app/src/main/java/com/android/calculator2/CalculatorResult.java).
+                    val exactLine = error == null && vm.evaluated && text != null
+                    val exactSize = if (exactLine) fitSize(measurer, text.orEmpty(), with(density) { width.roundToPx() }, RESULT_SIZE, 16.sp) else RESULT_SIZE
+                    val exactScroll = rememberScrollState()
                     Text(
                         text.orEmpty(),
-                        style = TextStyle(fontSize = RESULT_SIZE, textAlign = TextAlign.End),
+                        style = TextStyle(fontSize = exactSize, textAlign = TextAlign.End),
                         color = if (error != null) colors.error else colors.onSurfaceVariant,
-                        maxLines = 3,
-                        modifier = Modifier.fillMaxWidth()
+                        maxLines = if (exactLine) 1 else 3,
+                        softWrap = !exactLine,
+                        modifier = Modifier.fillMaxWidth().then(if (exactLine) Modifier.horizontalScroll(exactScroll) else Modifier)
                     )
                 }
                 if (line == null) Words(words)
@@ -315,7 +303,7 @@ fun errorText(error: CalcError): String = when (error) {
 }
 
 /** The largest size between [min] and [max] at which [text] holds on one line of [width]; long ones wrap at [min]. */
-private fun fitSize(measurer: androidx.compose.ui.text.TextMeasurer, text: String, room: Int, max: TextUnit, min: TextUnit): TextUnit {
+internal fun fitSize(measurer: androidx.compose.ui.text.TextMeasurer, text: String, room: Int, max: TextUnit, min: TextUnit): TextUnit {
     if (text.isEmpty()) return max
     val measured = measurer.measure(text, TextStyle(fontSize = max), softWrap = false).size.width
     if (measured <= 0) return max

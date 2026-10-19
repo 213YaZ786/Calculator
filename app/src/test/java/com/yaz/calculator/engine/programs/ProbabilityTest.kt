@@ -26,7 +26,7 @@ class ProbabilityTest {
         assertTrue(t, t.contains("3 paths"))
         val c = text("conditional-tree", mapOf("P(A)" to 0.3, "P_A(B)" to 0.8, "P_Ā(B)" to 0.1))
         assertTrue(c, c.contains("= 0.31"))
-        assertTrue(c, c.contains("P_B(A) = P(A∩B)/P(B) = 0.7741935484"))
+        assertTrue(c, c.contains("P_B(A) = P(A∩B)/P(B) = 24/31 ≈ 0.7741935484"))
     }
 
     @Test

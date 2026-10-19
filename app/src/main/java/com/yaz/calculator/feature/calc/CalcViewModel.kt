@@ -21,6 +21,7 @@ import com.yaz.calculator.engine.Base
 import com.yaz.calculator.engine.ProgExpr
 import com.yaz.calculator.engine.CalcException
 import com.yaz.calculator.engine.Format
+import com.yaz.calculator.engine.Fractions
 import com.yaz.calculator.engine.Outcome
 import com.yaz.calculator.engine.Sym
 import com.yaz.calculator.engine.UnifiedReal
@@ -382,6 +383,8 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
             } ?: raw
         }
         if (written.exact && form == written.text) return ""
+        // "Exact fractions" off: a plain p/q is left to its decimals (√2/2 and 3π/4 stay).
+        if (!Fractions.enabled && PLAIN_FRACTION.matches(form)) return ""
         if (form.length > 40 || form.contains("ln(")) return ""
         return form
     }
@@ -570,7 +573,8 @@ class CalcViewModel(private val ledger: Ledger, private val settings: SettingsSt
     }
 
     private companion object {
-        val FRACTION_TIMES = Regex("\\((${Sym.MINUS}?\\d+)/(\\d+)\\)(.+)")
+        val PLAIN_FRACTION = Regex("${Sym.MINUS}?\\d+/\\d+")
+        val FRACTION_TIMES =Regex("\\((${Sym.MINUS}?\\d+)/(\\d+)\\)(.+)")
         const val LIVE_MS = 1_500L
         const val EQUALS_MS = 10_000L
         const val MAX_EXTRA = 3_000

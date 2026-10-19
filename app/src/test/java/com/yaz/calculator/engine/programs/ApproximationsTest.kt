@@ -29,7 +29,7 @@ class ApproximationsTest {
     fun eulerAndBriggs() {
         // y′ = 2x from (0, 0): y = x², Euler below it.
         val t = text("euler-primitive", mapOf("f" to "2x", "x₀" to "0", "y₀" to "0", "h" to "0.1", "x" to "1"))
-        assertTrue(t, t.contains("y(1) ≈ 0.9"))
+        assertTrue(t, t.contains("y(1) ≈ 9/10 = 0.9"))
         val b = text("briggs", mapOf("x" to "2", "p" to "6"))
         assertTrue(b, b.contains("ln 2 = 0.6931471806"))
         assertTrue(b, b.contains("0.69314"))

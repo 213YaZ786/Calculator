@@ -1,5 +1,6 @@
 package com.yaz.calculator.engine.programs
 
+import com.yaz.calculator.engine.Fractions
 import java.util.Locale
 import org.hipparchus.analysis.UnivariateFunction
 import org.hipparchus.analysis.solvers.BrentSolver
@@ -82,6 +83,7 @@ class Solver(
 ) : Program {
 
     override fun run(values: Map<String, Double?>): Outcome {
+        Fractions.forget()
         val empty = fields.filter { values[it.symbol] == null }
         if (empty.size != 1) return Outcome(listOf(Line(MISSING_ONE.get())))
         val unknown = empty.single()
@@ -89,7 +91,7 @@ class Solver(
         val f = UnivariateFunction { x -> residual(known + (unknown.symbol to x)) }
         val root = Solve.root(f, positive) ?: return Outcome(listOf(Line(NO_SOLUTION.get())))
         return Outcome(
-            listOf(Line("${unknown.symbol} = ${Solve.show(root)} ${unknown.unit}".trim(), result = true)),
+            listOf(Line(Fractions.annotate("${unknown.symbol} = ${Solve.show(root)} ${unknown.unit}".trim()), result = true)),
             mapOf(unknown.symbol to root)
         )
     }
@@ -141,6 +143,6 @@ object Solve {
         } else {
             java.math.BigDecimal(v).round(java.math.MathContext(10)).stripTrailingZeros().toPlainString()
         }
-        return text.replace('-', '−')
+        return text.replace('-', '−').also { Fractions.note(it, v) }
     }
 }

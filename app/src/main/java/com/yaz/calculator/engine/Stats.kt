@@ -118,10 +118,13 @@ object Stats {
 
     /** A coefficient in the app's form for Y= (10 significant digits, − sign). */
     private fun num(v: Double): String =
-        java.math.BigDecimal(v).round(java.math.MathContext(10)).stripTrailingZeros().toPlainString().replace('-', Sym.MINUS)
+        if (!v.isFinite() || v != 0.0 && (abs(v) >= 1e15 || abs(v) < 1e-9)) com.yaz.calculator.engine.programs.Solve.show(v) else java.math.BigDecimal(v).round(java.math.MathContext(10)).stripTrailingZeros().toPlainString().replace('-', Sym.MINUS)
 
     private fun signed(v: Double) = if (v < 0) "${Sym.MINUS}${num(abs(v))}" else "+${num(v)}"
 
-    fun show(v: Double): String = java.math.BigDecimal(v).round(java.math.MathContext(6)).stripTrailingZeros().toPlainString().replace('-', '−')
+    /** 6 digits; a value that overflowed ("—") or is far from 1 takes a power of ten as the programs write it (Solve.show), never hundreds of digits. */
+    fun show(v: Double): String =
+        if (!v.isFinite() || v != 0.0 && (abs(v) >= 1e9 || abs(v) < 1e-4)) com.yaz.calculator.engine.programs.Solve.show(v)
+        else java.math.BigDecimal(v).round(java.math.MathContext(6)).stripTrailingZeros().toPlainString().replace('-', '−')
     private fun plus(v: Double) = if (v < 0) "− ${show(abs(v))}" else "+ ${show(v)}"
 }
