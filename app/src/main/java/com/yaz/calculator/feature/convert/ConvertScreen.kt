@@ -214,7 +214,7 @@ private fun Sides(vm: ConvertViewModel, style: NumberStyle, onCategories: () -> 
                     // Copied: the number pops, as a key does.
                     val pop = remember { Animatable(0f) }
                     OneLine(
-                        out?.let { style.show(it) } ?: "–",
+                        out?.let { style.show(it) } ?: "",
                         max = AMOUNT_MAX,
                         min = AMOUNT_MIN,
                         weight = FontWeight.Normal,
@@ -272,8 +272,9 @@ private fun Side(choice: Choice?, onUnit: () -> Unit, compact: Boolean = false, 
         Column(Modifier.padding(horizontal = 18.dp, vertical = if (compact) 4.dp else 12.dp), horizontalAlignment = Alignment.End) {
             ZoneSurface(shape = CircleShape, onClick = onUnit, modifier = Modifier.heightIn(min = if (compact) 36.dp else 40.dp).sink()) {
                 Row(Modifier.padding(horizontal = 14.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    // Name and symbol joined with a comma, as AOSP Dialer's CallLogEntryText.java joins its parts (https://android.googlesource.com/platform/packages/apps/Dialer/+/refs/heads/main/java/com/android/dialer/calllogutils/CallLogEntryText.java).
                     Text(
-                        choice?.let { if (it.symbol != it.name) "${it.name} · ${it.symbol}" else it.name } ?: "Choose",
+                        choice?.let { if (it.symbol != it.name) "${it.name}, ${it.symbol}" else it.name } ?: "Choose",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
                         maxLines = 1,
@@ -326,7 +327,7 @@ private fun RatesLine(vm: ConvertViewModel) {
             else -> {
                 Text(
                     when {
-                        state == RatesState.FAILED && date != null -> "Offline · rates of $date"
+                        state == RatesState.FAILED && date != null -> "Offline, rates of $date"
                         state == RatesState.FAILED -> "No connection, no rates yet"
                         date != null -> "Rates of $date"
                         else -> "No rates yet"

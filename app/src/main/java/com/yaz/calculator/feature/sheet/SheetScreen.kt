@@ -175,7 +175,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                     results = values.map { v ->
                         v?.let {
                             when {
-                                it.egg == "Euler" -> Shown("0  ·  Euler", null, false, ready = true)
+                                it.egg == "Euler" -> Shown("0, Euler", null, false, ready = true)
                                 it.egg == "Mandelbrot" -> Shown("Mandelbrot", null, false, ready = true, fractal = true)
                                 it.curve != null -> Shown("Graph", null, false, ready = true, plotted = Plotted(it.legend.orEmpty(), it.curve))
                                 it.moment != null -> Shown(written(it.moment), null, false, ready = true)

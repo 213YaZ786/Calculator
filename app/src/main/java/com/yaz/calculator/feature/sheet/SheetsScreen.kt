@@ -172,7 +172,7 @@ fun SheetsScreen(padding: PaddingValues, onOpen: (String) -> Unit) {
         }, modifier = Modifier.height(48.dp).sink(0.92f)) {
             Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(AppIcons.Undo, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text("Sheet deleted · Undo", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
+                Text("Sheet deleted, undo", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

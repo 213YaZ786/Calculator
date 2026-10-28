@@ -289,7 +289,7 @@ val analysis: List<Program> = listOf(
             res("Simpson : ${show(simpson)}"),
             stp(say("Rectangles à gauche ${show(left)}, à droite ${show(right)}, au milieu ${show(mid)}", "Rectangles left ${show(left)}, right ${show(right)}, midpoint ${show(mid)}")),
             stp(say("Trapèzes ${show(trap)}", "Trapezoids ${show(trap)}")),
-            exact?.let { res(say("Valeur (Gauss-Legendre) ${show(it)}", "Value (Gauss–Legendre) ${show(it)}")) },
+            exact?.let { res(say("Valeur (Gauss-Legendre) ${show(it)}", "Value (Gauss-Legendre) ${show(it)}")) },
             stp(say("Valeur moyenne ${show((exact ?: simpson) / (b - a))}", "Mean value ${show((exact ?: simpson) / (b - a))}")),
             if (shown < n) stp(say("Figure : $shown rectangles au milieu", "Figure: $shown midpoint rectangles")) else null
         ), figure = Figure(rects + Shape2.Curve(f, a, b, "f"), staged = shown <= 12))

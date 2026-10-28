@@ -129,7 +129,7 @@ private fun Results(adv: AdvancedViewModel, style: NumberStyle) {
             else {
                 Line("n = ${n(s.n)}   x̄ = ${n(s.mean)}", true)
                 Line("Σx = ${n(s.sum)}   Σx² = ${n(s.sumSquares)}")
-                Line("σx = ${n(s.sigma)}   sx = ${if (s.s.isNaN()) "—" else n(s.s)}")
+                Line("σx = ${n(s.sigma)}   sx = ${if (s.s.isNaN()) "Not a number" else n(s.s)}")
                 Line("min = ${n(s.min)}   Q1 = ${n(s.q1)}   Med = ${n(s.median)}   Q3 = ${n(s.q3)}   max = ${n(s.max)}")
             }
         } else {

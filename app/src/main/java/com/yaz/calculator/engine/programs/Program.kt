@@ -133,7 +133,9 @@ object Solve {
 
     /** A number as a student writes it: 10 significant digits, a power of ten when far from 1. */
     fun show(v: Double): String {
-        if (!v.isFinite()) return "—"
+        // No dash for an undefined value: the words errorText (Display.kt) shows; the way of building a line from parts is AOSP Dialer's CallLogEntryText.java (https://android.googlesource.com/platform/packages/apps/Dialer/+/refs/heads/main/java/com/android/dialer/calllogutils/CallLogEntryText.java).
+        if (v.isNaN()) return "Not a number"
+        if (v.isInfinite()) return "Too large"
         val a = Math.abs(v)
         val text = if (a != 0.0 && (a >= 1e9 || a < 1e-4)) {
             String.format(Locale.ROOT, "%.6e", v).let { s ->

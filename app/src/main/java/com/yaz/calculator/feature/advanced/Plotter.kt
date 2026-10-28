@@ -153,7 +153,7 @@ fun Plotter(
             for ((c, color) in curves) {
                 val y = c(x)
                 if (y.isFinite()) drawCircle(color, 5.dp.toPx(), Offset(sx(x), sy(y)))
-                val t = measurer.measure("y = " + (if (y.isFinite()) number(y, style, 5) else "—"), strong.copy(color = color))
+                val t = measurer.measure("y = " + (if (y.isFinite()) number(y, style, 5) else "Not a number"), strong.copy(color = color))
                 drawText(t, topLeft = Offset(8f, row))
                 row += t.size.height + 2f
             }
@@ -208,7 +208,9 @@ fun niceStep(raw: Double): Double {
 
 /** [v] with up to [digits] decimals, in the user's way. */
 fun number(v: Double, style: NumberStyle, digits: Int): String {
-    if (!v.isFinite()) return "—"
+    // An undefined value in words, not a dash (parts joined as AOSP Dialer's CallLogEntryText.java, https://android.googlesource.com/platform/packages/apps/Dialer/+/refs/heads/main/java/com/android/dialer/calllogutils/CallLogEntryText.java).
+    if (v.isNaN()) return "Not a number"
+    if (v.isInfinite()) return "Too large"
     // Very large or very small: 1.6×10²¹, as the calculator writes a power of ten.
     if (v != 0.0 && (abs(v) >= 1e7 || abs(v) < 1e-4)) {
         val e = floor(log10(abs(v))).toInt()
