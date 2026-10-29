@@ -95,6 +95,7 @@ fun CalcScreen(
     style: NumberStyle,
     padding: PaddingValues,
     historyOpen: Boolean,
+    historyState: androidx.compose.foundation.lazy.LazyListState,
     onHistory: (Boolean) -> Unit
 ) {
     val store: SettingsStore = koinInject()
@@ -227,7 +228,7 @@ fun CalcScreen(
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     // Its last line level with the keys' bottom row: the keys' margin and the navigation bar.
                     val navigation = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                    HistoryList(vm, style, PaddingValues(top = padding.calculateTopPadding(), bottom = 12.dp + navigation), onTaken = {})
+                    HistoryList(vm, style, PaddingValues(top = padding.calculateTopPadding(), bottom = 12.dp + navigation), onTaken = {}, state = historyState)
                 }
             }
             Column(
@@ -331,7 +332,8 @@ fun CalcScreen(
                         vm,
                         style,
                         PaddingValues(top = padding.calculateTopPadding(), bottom = 24.dp + with(density) { WindowInsets.navigationBars.getBottom(density).toDp() }),
-                        onTaken = { onHistory(false) }
+                        onTaken = { onHistory(false) },
+                        state = historyState
                     )
                 }
             }

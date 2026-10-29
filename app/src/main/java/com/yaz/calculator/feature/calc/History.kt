@@ -49,7 +49,7 @@ import java.util.Date
  * cursor is.
  */
 @Composable
-fun HistoryList(vm: CalcViewModel, style: NumberStyle, padding: PaddingValues, onTaken: () -> Unit, modifier: Modifier = Modifier) {
+fun HistoryList(vm: CalcViewModel, style: NumberStyle, padding: PaddingValues, onTaken: () -> Unit, state: androidx.compose.foundation.lazy.LazyListState, modifier: Modifier = Modifier) {
     val data by vm.entries.collectAsState()
     val haptics = rememberHaptics()
     val entries = data.entries
@@ -63,7 +63,7 @@ fun HistoryList(vm: CalcViewModel, style: NumberStyle, padding: PaddingValues, o
     val rows = remember(entries) { rowsOf(entries) }
     LazyColumn(
         modifier.fillMaxSize(),
-        state = rememberLazyListState(),
+        state = state,
         reverseLayout = true,
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp, androidx.compose.ui.Alignment.Bottom)

@@ -195,8 +195,10 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
     LaunchedEffect(Unit) { if (state.text.isEmpty()) runCatching { focus.requestFocus() } }
     DisposableEffect(id) { onDispose { store.dropIfEmpty(id) } }
 
+    val pageScroll = rememberScrollState()
     FloatingFrame(
         bottom = 0.dp,
+        scroll = pageScroll,
         top = {
             FloatingTop(
                 sheet?.title?.takeIf { it.isNotEmpty() } ?: "New sheet",
@@ -225,7 +227,7 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(pageScroll)
                     .padding(horizontal = LocalReadableInset.current)
             ) {
                 Spacer(Modifier.height(padding.calculateTopPadding() + 8.dp))

@@ -60,7 +60,7 @@ import org.koin.compose.koinInject
  * each with its first lines. Cards wrap into columns on a wide screen.
  */
 @Composable
-fun SheetsScreen(padding: PaddingValues, onOpen: (String) -> Unit) {
+fun SheetsScreen(padding: PaddingValues, grid: androidx.compose.foundation.lazy.grid.LazyGridState, onOpen: (String) -> Unit) {
     val store: SheetStore = koinInject()
     val sheets by store.sheets.collectAsState()
     val haptics = rememberHaptics()
@@ -69,6 +69,7 @@ fun SheetsScreen(padding: PaddingValues, onOpen: (String) -> Unit) {
     var renaming by remember { mutableStateOf<com.yaz.calculator.data.sheets.Sheet?>(null) }
     Box(Modifier.fillMaxSize()) {
     LazyVerticalGrid(
+        state = grid,
         columns = GridCells.Adaptive(300.dp),
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(

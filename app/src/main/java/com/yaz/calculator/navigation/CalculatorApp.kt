@@ -149,8 +149,17 @@ private fun MainScreen(nav: NavHostController, style: NumberStyle, mode: Mode, o
     BoxWithConstraints(Modifier.fillMaxSize()) {
         // A tablet lying down; a phone on its side keeps its height for the keys.
         val sideHistory = maxWidth > maxHeight * 1.1f && maxWidth >= 840.dp && maxHeight >= 480.dp && !calc.advanced
+        // The list in view is what a drag on the header scrolls: the history (drawn from the bottom) or the sheets.
+        val historyState = androidx.compose.foundation.lazy.rememberLazyListState()
+        val sheetsGrid = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
         FloatingFrame(
             bottom = 0.dp,
+            scroll = when (mode) {
+                Mode.CALCULATOR -> if (historyOpen || sideHistory) historyState else null
+                Mode.SHEETS -> sheetsGrid
+                else -> null
+            },
+            reverseLayout = mode == Mode.CALCULATOR,
             top = {
                 FloatingTop(
                     title = null,
@@ -176,9 +185,9 @@ private fun MainScreen(nav: NavHostController, style: NumberStyle, mode: Mode, o
                 label = "mode"
             ) { m ->
                 when (m) {
-                    Mode.CALCULATOR -> CalcScreen(calc, style, padding, historyOpen) { historyOpen = it }
+                    Mode.CALCULATOR -> CalcScreen(calc, style, padding, historyOpen, historyState) { historyOpen = it }
                     Mode.CONVERT -> ConvertScreen(convert, style, padding)
-                    Mode.SHEETS -> SheetsScreen(padding) { nav.navigate(Routes.sheet(it)) }
+                    Mode.SHEETS -> SheetsScreen(padding, sheetsGrid) { nav.navigate(Routes.sheet(it)) }
                 }
             }
         }
