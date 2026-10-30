@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
@@ -128,9 +129,15 @@ fun SceneView(scene: Scene, modifier: Modifier = Modifier, height: androidx.comp
                 }
                 scene.shapes.filter { shown(it) >= 1f }.forEach { s -> drawLabel(view, s, palette[s.tone % palette.size], ink, measurer) }
             }
-            ZoneSurface(shape = CircleShape, accent = true, modifier = Modifier.align(Alignment.TopStart).padding(10.dp)) {
-                Text("3D", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp))
-            }
+            // The label does nothing, so it is plain text over the figure, no zone; a soft shadow
+            // (https://developer.android.com/develop/ui/compose/text/style-text#add-shadow).
+            Text(
+                "3D",
+                style = MaterialTheme.typography.labelLarge.copy(shadow = Shadow(Color.Black.copy(alpha = 0.4f), Offset(0f, 2f), 6f)),
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.align(Alignment.TopStart).padding(horizontal = 22.dp, vertical = 14.dp)
+            )
         }
     }
 }

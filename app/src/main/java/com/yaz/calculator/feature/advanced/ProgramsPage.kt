@@ -186,7 +186,8 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                     ZoneSurface(
                         shape = RoundedCornerShape(50),
                         accent = chosen,
-                        onClick = if (chosen) null else ({ haptics.tick(); adv.switchTo(s) }),
+                        // The chosen one stays a tap target as in a Material choice group: it keeps the choice, with the press feedback.
+                        onClick = { haptics.tick(); if (!chosen) adv.switchTo(s) },
                         modifier = Modifier.height(40.dp).sink(0.94f)
                     ) {
                         Box(Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {

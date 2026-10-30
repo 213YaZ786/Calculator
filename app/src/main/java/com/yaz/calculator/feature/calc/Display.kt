@@ -156,8 +156,14 @@ fun Display(vm: CalcViewModel, style: NumberStyle, memoryOn: Boolean, modifier: 
         val hasTrig = vm.text.text.contains("sin") || vm.text.text.contains("cos") || vm.text.text.contains("tan")
 
         Row(Modifier.align(Alignment.TopStart).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (hasTrig) Badge(if (vm.degrees) "DEG" else "RAD")
-            if (memoryOn) Badge("M")
+            // A capsule is a tap: DEG/RAD switches the angle mode, M recalls the memory
+            // (ExactCalculator's toggle_mode on click, https://github.com/LineageOS/android_packages_apps_ExactCalculator,
+            // src/com/android/calculator2/Calculator.java onButtonClick; the keypad's own haptics).
+            if (hasTrig) Badge(
+                if (vm.degrees) "DEG" else "RAD",
+                if (vm.degrees) "Degrees, switch to radians" else "Radians, switch to degrees"
+            ) { vm.toggleDegrees(); feelIt(swipeHaptics, Feel.TICK) }
+            if (memoryOn) Badge("M", "Use the memory") { feelIt(swipeHaptics, vm.memoryRecall()) }
         }
         // The actions stay under the result; the lines above them scroll when digits are unfolded.
         Column(Modifier.align(Alignment.BottomEnd).fillMaxWidth(), horizontalAlignment = Alignment.End) {
@@ -274,8 +280,8 @@ private fun Words(words: String?) {
 }
 
 @Composable
-private fun Badge(text: String) {
-    ZoneSurface(shape = CircleShape, accent = true) {
+private fun Badge(text: String, label: String, onClick: () -> Unit) {
+    ZoneSurface(shape = CircleShape, accent = true, onClick = onClick, modifier = Modifier.sink(0.92f).semantics { contentDescription = label }) {
         Text(text, style = MaterialTheme.typography.labelMedium, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
     }
 }
