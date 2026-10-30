@@ -15,6 +15,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import com.yaz.calculator.feature.advanced.balancedPerRow
+import com.yaz.calculator.feature.advanced.measuredWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -335,9 +338,16 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                 enter = slideInVertically { it } + fadeIn(),
                 exit = slideOutVertically { it } + fadeOut()
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                // Nine in a row while the measured signs fit at this font scale, else balanced rows: FlowRow
+                // with maxItemsInEachRow and weight (https://developer.android.com/develop/ui/compose/layouts/flow),
+                // the count from AdvancedScreen's balancedPerRow (SMS's PersonActions.perRowFor).
+                val signWidth = measuredWidth(SIGNS, TextStyle(fontSize = 20.sp)) + 16.dp
+                BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp)) {
+                FlowRow(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    maxItemsInEachRow = balancedPerRow(SIGNS.size, maxOf(signWidth, 44.dp), maxWidth, 6.dp)
                 ) {
                     SIGNS.forEach { sign ->
                         ZoneSurface(
@@ -350,11 +360,12 @@ fun SheetScreen(id: String, style: NumberStyle, onBack: () -> Unit) {
                                     selection = TextRange(at.min + sign.length)
                                 }
                             },
-                            modifier = Modifier.weight(1f).height(44.dp).sink(0.86f).semantics { contentDescription = sign }
+                            modifier = Modifier.weight(1f).fillMaxRowHeight().heightIn(min = 44.dp).sink(0.86f).semantics { contentDescription = sign }
                         ) {
                             Box(contentAlignment = Alignment.Center) { Text(sign, fontSize = 20.sp, color = colors.primary) }
                         }
                     }
+                }
                 }
             }
         }

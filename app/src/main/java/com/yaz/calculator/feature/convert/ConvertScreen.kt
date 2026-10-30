@@ -38,7 +38,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
 import androidx.compose.foundation.text.BasicTextField
+import com.yaz.calculator.feature.advanced.balancedPerRow
+import com.yaz.calculator.feature.advanced.measuredWidth
+import com.yaz.calculator.feature.advanced.rememberGroupFontSize
 import androidx.compose.foundation.text.input.InputTransformation
 import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldLineLimits
@@ -277,7 +281,8 @@ private fun Side(choice: Choice?, onUnit: () -> Unit, compact: Boolean = false, 
                         choice?.let { if (it.symbol != it.name) "${it.name}, ${it.symbol}" else it.name } ?: "Choose",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.primary,
-                        maxLines = 1,
+                        // Wraps to a second line rather than cutting a long name (another language, 200 % font).
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.widthIn(max = 240.dp)
                     )
@@ -359,21 +364,42 @@ private fun CategoryDialog(current: Category, onPick: (Category) -> Unit, onDism
         DialogPane {
             Column(Modifier.widthIn(max = 560.dp).padding(horizontal = 16.dp, vertical = 20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Convert", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(bottom = 16.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Category.entries.forEach { c ->
-                        ZoneSurface(
-                            shape = RoundedCornerShape(20.dp),
-                            accent = c == current,
-                            onClick = { haptics.tick(); onPick(c) },
-                            modifier = Modifier.width(96.dp).sink()
-                        ) {
-                            Column(Modifier.padding(vertical = 14.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                Icon(iconOf(c), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                Text(nameOf(c), style = MaterialTheme.typography.labelMedium, textAlign = TextAlign.Center, maxLines = 2)
+                // Tiles at least 96 dp and as wide as their longest word (TextMeasurer, measured at this font
+                // scale and language), in balanced rows: FlowRow with maxItemsInEachRow and weight
+                // (https://developer.android.com/develop/ui/compose/layouts/flow; SMS's PersonActions). Names wrap
+                // between words; all the names are drawn at one size, the largest at which every longest word
+                // fits (rememberGroupFontSize, the ladder of TextAutoSize.StepBased,
+                // https://developer.android.com/develop/ui/compose/text/autosize).
+                val labelStyle = MaterialTheme.typography.labelMedium
+                val wordWidth = measuredWidth(Category.entries.flatMap { nameOf(it).split(' ') }, labelStyle) + 12.dp
+                BoxWithConstraints(Modifier.fillMaxWidth()) {
+                    val available = maxWidth
+                    val perRow = balancedPerRow(Category.entries.size, maxOf(96.dp, wordWidth), available, 10.dp)
+                    val inRow = minOf(perRow, Category.entries.size)
+                    val nameSize = rememberGroupFontSize(
+                        Category.entries.map { nameOf(it) }, labelStyle,
+                        maxOf(minOf(maxOf(96.dp, wordWidth), available), (available - 10.dp * (inRow - 1)) / inRow) - 12.dp
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        maxItemsInEachRow = perRow,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Category.entries.forEach { c ->
+                            ZoneSurface(
+                                shape = RoundedCornerShape(20.dp),
+                                accent = c == current,
+                                onClick = { haptics.tick(); onPick(c) },
+                                modifier = Modifier.weight(1f).fillMaxRowHeight().widthIn(min = minOf(maxOf(96.dp, wordWidth), available)).sink()
+                            ) {
+                                Column(Modifier.padding(vertical = 14.dp, horizontal = 6.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Icon(iconOf(c), contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                    BasicText(
+                                        nameOf(c),
+                                        style = labelStyle.copy(color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center, fontSize = nameSize)
+                                    )
+                                }
                             }
                         }
                     }

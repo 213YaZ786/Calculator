@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -63,6 +64,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.InterceptPlatformTextInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -73,6 +76,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.yaz.calculator.data.advanced.Window
@@ -251,25 +255,99 @@ private fun Screen(
     }
 }
 
+/**
+ * The widest of [labels] on one line in [style], at the current font scale, as a Dp: the least width a
+ * tile of these words can take before they wrap (TextMeasurer,
+ * https://developer.android.com/develop/ui/compose/text/measure-text-layout), as SMS's PersonActions
+ * measures its tiles (https://github.com/213YaZ786/SMS, ui/component/PersonActions.kt).
+ */
+@Composable
+internal fun measuredWidth(labels: List<String>, style: TextStyle): Dp {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(labels, style, density) {
+        with(density) { labels.maxOf { measurer.measure(it, style, softWrap = false, maxLines = 1).size.width }.toDp() }
+    }
+}
+
+/**
+ * One text size for all the labels of a group, computed once: the largest size from the style's down to [min], in
+ * 0.5 sp steps, at which the longest word of every label fits [textWidth]; the labels are then drawn at that size,
+ * wrapping between words, so no two read in two sizes (Material's type scale; Apple's Dynamic Type). The ladder is
+ * Compose's TextAutoSize.StepBased, asked of the whole group at once
+ * (https://github.com/androidx/androidx/blob/androidx-main/compose/foundation/foundation/src/commonMain/kotlin/androidx/compose/foundation/text/AutoSize.kt),
+ * the fit measured with TextMeasurer (https://developer.android.com/develop/ui/compose/text/measure-text-layout) as
+ * SMS's rememberGroupLabelSize does (https://github.com/213YaZ786/SMS, ui/component/GroupLabelSize.kt).
+ */
+@Composable
+internal fun rememberGroupFontSize(labels: List<String>, style: TextStyle, textWidth: Dp, min: TextUnit = 9.sp): TextUnit {
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
+    return remember(labels, style, textWidth, min, density) {
+        val max = style.fontSize
+        val words = labels.flatMap { it.split(' ', '\n') }.filter { it.isNotEmpty() }.distinct()
+        if (!max.isSp || max.value <= min.value || words.isEmpty() || textWidth.value <= 0f) return@remember max
+        val limit = with(density) { textWidth.toPx() }
+        var size = max.value
+        while (size > min.value) {
+            val sized = style.copy(fontSize = size.sp)
+            if (words.all { measurer.measure(it, sized, softWrap = false, maxLines = 1).size.width <= limit }) return@remember size.sp
+            size -= 0.5f
+        }
+        min
+    }
+}
+
+/**
+ * Items per row for [count] tiles of [tile] width in [available] with [gap] between: rows = ceil(count / fit),
+ * perRow = ceil(count / rows), so 6 tabs that do not fit one row make 3 + 3, then 2 + 2 + 2, never 5 + 1
+ * (FlowRow's maxItemsInEachRow, https://developer.android.com/develop/ui/compose/layouts/flow; the balancing
+ * is SMS's PersonActions.perRowFor).
+ */
+internal fun balancedPerRow(count: Int, tile: Dp, available: Dp, gap: Dp): Int {
+    val fit = ((available + gap) / (tile + gap)).toInt().coerceAtLeast(1)
+    val rows = (count + fit - 1) / fit
+    return (count + rows - 1) / rows
+}
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PageTabs(adv: AdvancedViewModel) {
     val haptics = rememberHaptics()
     val colors = MaterialTheme.colorScheme
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf(Page.CALC to "Calc", Page.FUNCTIONS to "f(x)", Page.GRAPH to "Graph", Page.TABLE to "Table", Page.STATS to "Stat", Page.BASES to "HEX").forEach { (page, label) ->
-            val on = adv.page == page
-            val fill by animateColorAsState(if (on) Gold.copy(alpha = 0.32f) else Color.Transparent, label = "tab")
-            Box(
-                Modifier
-                    .weight(1f)
-                    .clip(CircleShape)
-                    .background(fill)
-                    .semantics { role = Role.Tab; selected = on }
-                    .clickable { haptics.tick(); adv.page = page }
-                    .padding(vertical = 8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) colors.onSurface else colors.onSurfaceVariant, maxLines = 1)
+    val tabs = listOf(Page.CALC to "Calc", Page.FUNCTIONS to "f(x)", Page.GRAPH to "Graph", Page.TABLE to "Table", Page.STATS to "Stat", Page.BASES to "HEX")
+    // Six in a row while the measured words fit, else 3 + 3, else 2 + 2 + 2: FlowRow with maxItemsInEachRow
+    // and weight (https://developer.android.com/develop/ui/compose/layouts/flow). A tab is its widest word
+    // (bold, the widest style) plus 12 dp each side; a longer word wraps between words, never clipped.
+    val boldStyle = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
+    val word = measuredWidth(tabs.map { it.second }, boldStyle) + 24.dp
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val perRow = balancedPerRow(tabs.size, word, maxWidth, 6.dp)
+        // One size for the six tabs, from the width a tab gets in a full row less its 12 dp each side.
+        val inRow = minOf(perRow, tabs.size)
+        val labelSize = rememberGroupFontSize(tabs.map { it.second }, boldStyle, (maxWidth - 6.dp * (inRow - 1)) / inRow - 24.dp)
+        FlowRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            maxItemsInEachRow = perRow
+        ) {
+            tabs.forEach { (page, label) ->
+                val on = adv.page == page
+                val fill by animateColorAsState(if (on) Gold.copy(alpha = 0.32f) else Color.Transparent, label = "tab")
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxRowHeight()
+                        .clip(CircleShape)
+                        .background(fill)
+                        .semantics { role = Role.Tab; selected = on }
+                        .clickable { haptics.tick(); adv.page = page }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelLarge, fontSize = labelSize, fontWeight = if (on) FontWeight.Bold else FontWeight.Medium, color = if (on) colors.onSurface else colors.onSurfaceVariant, textAlign = TextAlign.Center)
+                }
             }
         }
     }

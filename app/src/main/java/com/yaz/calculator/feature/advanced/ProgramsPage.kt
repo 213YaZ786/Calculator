@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -188,9 +189,10 @@ private fun ProgramView(adv: AdvancedViewModel, style: NumberStyle) {
                         accent = chosen,
                         // The chosen one stays a tap target as in a Material choice group: it keeps the choice, with the press feedback.
                         onClick = { haptics.tick(); if (!chosen) adv.switchTo(s) },
-                        modifier = Modifier.height(40.dp).sink(0.94f)
+                        // A minimum height, not a fixed one: the name may wrap in another language or at 200 %.
+                        modifier = Modifier.heightIn(min = 40.dp).sink(0.94f)
                     ) {
-                        Box(Modifier.fillMaxHeight().padding(horizontal = 14.dp), contentAlignment = Alignment.Center) {
+                        Box(Modifier.heightIn(min = 40.dp).padding(horizontal = 14.dp, vertical = 8.dp), contentAlignment = Alignment.Center) {
                             Text((s.short ?: s.title).get(), style = MaterialTheme.typography.labelLarge, fontWeight = if (chosen) FontWeight.Bold else FontWeight.Medium)
                         }
                     }

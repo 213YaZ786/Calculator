@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -111,7 +112,8 @@ private fun BaseRow(base: Base, value: Long?, chosen: Boolean, onClick: () -> Un
             .padding(vertical = 2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(Modifier.width(52.dp)) {
+        // A minimum, not a fixed width: the base's name may be longer in another language or at 200 %.
+        Box(Modifier.widthIn(min = 52.dp)) {
             if (chosen) {
                 ZoneSurface(shape = RoundedCornerShape(50), accent = true) {
                     Text(base.label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, color = ink, modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp))

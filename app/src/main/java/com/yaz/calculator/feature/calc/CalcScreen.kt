@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -499,9 +500,9 @@ private const val FADE_MS = 400
 /** Undo after a clear, Redo after an undo: a pill beside the result's actions. */
 @Composable
 private fun UndoPill(offer: Offer, onClick: () -> Unit) {
-    ZoneSurface(shape = CircleShape, accent = true, onClick = onClick, modifier = Modifier.height(44.dp).sink(0.9f)) {
+    ZoneSurface(shape = CircleShape, accent = true, onClick = onClick, modifier = Modifier.heightIn(min = 44.dp).sink(0.9f)) {
         AnimatedContent(offer, transitionSpec = { (scaleIn() + fadeIn()) togetherWith (scaleOut() + fadeOut()) }, label = "offer") { o ->
-            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.heightIn(min = 44.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 // The arrow turns back the way it points, once, as it comes.
                 val turn = remember { androidx.compose.animation.core.Animatable(if (o == Offer.UNDO) 90f else -90f) }
                 LaunchedEffect(Unit) { turn.animateTo(0f, androidx.compose.animation.core.spring(dampingRatio = 0.45f, stiffness = 400f)) }

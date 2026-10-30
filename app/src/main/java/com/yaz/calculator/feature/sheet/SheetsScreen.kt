@@ -10,6 +10,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
@@ -170,9 +171,10 @@ fun SheetsScreen(padding: PaddingValues, grid: androidx.compose.foundation.lazy.
             haptics.tick()
             deleted?.let { (sheet, at) -> store.restore(sheet, at) }
             deleted = null
-        }, modifier = Modifier.height(48.dp).sink(0.92f)) {
-            Row(Modifier.padding(horizontal = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+        }, modifier = Modifier.heightIn(min = 48.dp).sink(0.92f)) {
+            Row(Modifier.heightIn(min = 48.dp).padding(horizontal = 18.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Icon(AppIcons.Undo, contentDescription = null, modifier = Modifier.size(20.dp))
+                // Wraps between words in a longer language or at 200 %, never cut.
                 Text("Sheet deleted, undo", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp))
             }
         }
