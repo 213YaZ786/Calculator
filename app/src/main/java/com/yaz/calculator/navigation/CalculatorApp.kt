@@ -130,7 +130,13 @@ fun CalculatorApp(asked: MutableState<Asked?>) {
             MainScreen(nav, style, mode) { mode = it }
             UpdatePrompt(settings.updates, BuildConfig.VERSION_NAME)
         }
-        composable(Routes.SETTINGS) { SettingsScreen(onBack = { nav.popBackStack() }) }
+        // Settings > Guide: the welcome again, its end leading home (Store's StoreApp: navigate to SETUP, popUpTo(HOME) inclusive).
+        composable(Routes.SETTINGS) {
+            SettingsScreen(
+                onBack = { nav.popBackStack() },
+                onGuide = { nav.navigate(Routes.WELCOME) { popUpTo(Routes.MAIN) { inclusive = true } } }
+            )
+        }
         composable(Routes.SHEET) { entry ->
             val id = entry.arguments?.getString("id").orEmpty()
             SheetScreen(id, style, onBack = { nav.popBackStack() })

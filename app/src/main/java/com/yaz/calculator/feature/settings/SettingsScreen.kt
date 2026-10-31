@@ -60,7 +60,7 @@ import org.koin.androidx.compose.koinViewModel
 private enum class OpenDialog { NONE, THEME, TEXT_SIZE, UPDATES, ANGLE, CLEAR }
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewModel()) {
+fun SettingsScreen(onBack: () -> Unit, onGuide: () -> Unit = {}, viewModel: SettingsViewModel = koinViewModel()) {
     val settings by viewModel.settings.collectAsState()
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -130,6 +130,9 @@ fun SettingsScreen(onBack: () -> Unit, viewModel: SettingsViewModel = koinViewMo
             }
 
             Section("About") {
+                // Dialer's Guide tile (https://github.com/213YaZ786/Dialer/blob/main/app/src/main/java/com/yaz/dialer/feature/settings/SettingsScreen.kt),
+                // the route way of Store's (https://github.com/213YaZ786/Store, StoreApp.kt: nav.navigate(Routes.SETUP) { popUpTo(Routes.HOME) { inclusive = true } }).
+                SettingRow(title = "Guide", summary = "See the welcome pages again", onClick = onGuide)
                 SettingRow(title = "Updates", summary = updatesLabel(settings.updates), onClick = { dialog = OpenDialog.UPDATES })
                 // Seven taps, as on Android's own version: the keys fall.
                 var taps by remember { mutableStateOf(0 to 0L) }
