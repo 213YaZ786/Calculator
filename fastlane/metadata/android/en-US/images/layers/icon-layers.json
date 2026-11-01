@@ -1,0 +1,9 @@
+{
+  "v": 1,
+  "ground": {"day": "system_accent1_50", "night": "system_accent1_50"},
+  "layers": [
+    {"png": "keys_body.png", "sha256": "ac62eddcd85b346f5c119ec66b7316e6dc680ec1c183a579e406374b24519859", "day": "system_accent1_500", "night": "system_accent1_500"},
+    {"png": "keys_shine.png", "sha256": "e668eadadaade478beefb607934f19c3e5af6319d5372099b845e3a3707a3ffa"},
+    {"png": "keys_signs.png", "sha256": "405e6f628b9f79889b50e21338ac26856c2eb652c31d684474c448c6c252e1a3"}
+  ]
+}
